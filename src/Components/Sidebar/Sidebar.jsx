@@ -5,6 +5,7 @@ import { MdDashboard } from "react-icons/md";
 import brandlogo from "../../assets/image/stone-logo.png";
 import {
   AlignCenterVertical,
+  CalendarCog,
   ChartColumnIncreasing,
   Crown,
   Settings,
@@ -49,10 +50,15 @@ const Sidebar = ({ closeDrawer }) => {
       label: "Categories",
       Link: "/categories",
     },
-        {
+    {
       icon: <SiActivitypub className="w-5 h-5"/>,
       label: "Activity & Events",
       Link: "/activity&events",
+    },
+    {
+      icon: <CalendarCog className="w-5 h-5" />,
+      label: "Event Creator",
+      Link: "/event-creator",
     },
     {
       icon: <TriangleAlert className="w-5 h-5" />,

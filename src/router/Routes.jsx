@@ -25,6 +25,8 @@ import BlockedList from "../Pages/BlockedList/BlockedList";
 import ChangePass from "../Pages/AdminProfile/ChangePass";
 import AdsSetup from "../Pages/AdsSetup/AdsSetup";
 import ActivityEvents from "../Pages/Activity & Events/ActivityEvents";
+import EventCreators from "../Pages/EventCreator/EventCreators";
+import EventCreatorDetails from "../Pages/EventCreator/EventCreatorDetails";
 export const router = createBrowserRouter([
   {
     path: "/sign-in",
@@ -61,7 +63,9 @@ export const router = createBrowserRouter([
           { path: "/categories", element: <Categories /> },
           { path: "/reports", element: <Reports /> },
           { path: "/ads-setup", element: <AdsSetup /> },
-            { path: "/activity&events", element: <ActivityEvents /> },
+          { path: "/activity&events", element: <ActivityEvents /> },
+          { path: "/event-creator", element: <EventCreators /> },
+          { path: "/event-creator/:id", element: <EventCreatorDetails /> },
           { path: "/notifications", element: <Notifications /> },
           { path: "/settings", element: <Settings /> },
           { path: "/settings/about-us", element: <AboutUs /> },
