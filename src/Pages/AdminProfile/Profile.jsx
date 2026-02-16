@@ -2,9 +2,9 @@ import { useState } from "react";
 
 function Profile({ setActiveTab }) {
   const [userData, setUserData] = useState({
-    name: "Md. Mehedi Hasan",
-    email: "mdmehedihasan@gmail.com",
-    number: "01712345678",
+          name:"Md. Rajuan Hossen",
+          email:"rajuan.official@gmail.com",
+          number:"01836214556",
     address: "79/A Joker Vila, Gotham City",
   });
   return (
