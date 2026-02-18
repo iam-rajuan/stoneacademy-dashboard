@@ -213,8 +213,14 @@ const Categories = () => {
 
       {/*===================================== Add/Edit Modal===================================== */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md p-6 bg-white rounded-lg shadow-lg"
+            onClick={(event) => event.stopPropagation()}
+          >
             <h2 className="mb-4 text-xl font-semibold">
               {modalType === "add" ? "Add Category" : "Edit Category"}
             </h2>
@@ -247,8 +253,14 @@ const Categories = () => {
 
       {/*============================ Delete Confirmation Modal============================ */}
       {deletingCategoryIndex !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-sm p-6 bg-white rounded-lg shadow-lg">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={closeDeleteModal}
+        >
+          <div
+            className="w-full max-w-sm p-6 bg-white rounded-lg shadow-lg"
+            onClick={(event) => event.stopPropagation()}
+          >
             <h3 className="mb-4 text-2xl font-bold text-center">
               Are you sure you want to delete this category?
             </h3>

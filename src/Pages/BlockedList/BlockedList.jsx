@@ -254,8 +254,14 @@ const BlockedList = () => {
 
       {/* VIEW USER MODAL */}
       {isModalOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md mx-4 bg-white rounded-lg shadow-xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={handleCloseModal}
+        >
+          <div
+            className="w-full max-w-md mx-4 bg-white rounded-lg shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="flex items-center justify-between p-6 border-b">
               <h2 className="flex-1 text-2xl font-semibold text-center text-[#71ABE0]">
                 User Details
@@ -313,8 +319,14 @@ const BlockedList = () => {
 
       {/* UNBLOCK CONFIRMATION MODAL */}
       {isConfirmModalOpen && userToBlock && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md mx-4 bg-white rounded-lg shadow-xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={handleCancelBlock}
+        >
+          <div
+            className="w-full max-w-md mx-4 bg-white rounded-lg shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="flex items-center justify-between p-6 border-b">
               <h2 className="flex-1 text-2xl font-semibold text-center text-[#71ABE0]">
                 Unblock User

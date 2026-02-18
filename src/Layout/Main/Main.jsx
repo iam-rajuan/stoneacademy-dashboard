@@ -31,7 +31,7 @@ const MainLayout = () => {
       {/* Main Content Wrapper */}
       <div className="flex flex-col flex-1 h-full lg:ml-72">
         {/* Styled Header */}
-        <div className="fixed left-0 z-20 px-6 rounded-lg bg-gray-50 subtract-width lg:ml-72">
+        <div className="fixed inset-x-0 top-0 z-20 bg-white shadow-sm px-4 py-3 sm:px-6 lg:left-72 lg:right-0 lg:w-[calc(100%-18rem)]">
           <Header
             showDrawer={showDrawer}
             toggleNotificationDropdown={toggleNotificationDropdown}
@@ -39,7 +39,7 @@ const MainLayout = () => {
         </div>
 
         {/* Scrollable Outlet Section */}
-        <div className="flex-1 p-4 overflow-y-auto  bg-gray-50">
+        <div className="flex-1 p-4 mt-24 overflow-y-auto bg-gray-50 sm:mt-28">
           <Outlet />
         </div>
       </div>

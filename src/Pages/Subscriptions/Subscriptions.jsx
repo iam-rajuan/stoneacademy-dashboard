@@ -397,8 +397,14 @@ const Subscriptions = () => {
 
       {/*================================================Manage Fees Modal================================================ */}
       {showManageFeesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-2xl mx-4 bg-white rounded-lg shadow-xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={handleCloseModal}
+        >
+          <div
+            className="w-full max-w-2xl mx-4 bg-white rounded-lg shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             {/* ================================================Modal Header================================================ */}
             <div className="px-6 py-4 text-center text-white bg-[#71ABE0] rounded-t-lg">
               <h2 className="text-xl font-semibold">Manage Fees</h2>

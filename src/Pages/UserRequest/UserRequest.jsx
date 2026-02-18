@@ -380,8 +380,14 @@ function UserRequest() {
 
       {/* ================= Modal for user  details ============= */}
       {isModalOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md p-4 overflow-hidden bg-white rounded-md">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md p-4 overflow-hidden bg-white rounded-md"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="relative">
               {/* Modal Close Button */}
               <button
@@ -448,8 +454,14 @@ function UserRequest() {
 
       {/* ================= Modal for  Block Users ============= */}
       {isModalBlock && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md overflow-hidden bg-white rounded-md">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setIsModalBlock(false)}
+        >
+          <div
+            className="w-full max-w-md overflow-hidden bg-white rounded-md"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="relative">
               {/* Modal Close Button */}
               <button
@@ -482,8 +494,14 @@ function UserRequest() {
 
         {/* ================= Modal for  Accept Users ============= */}
         {isModalAccept && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md overflow-hidden bg-white rounded-md">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setIsModalAccept(false)}
+        >
+          <div
+            className="w-full max-w-md overflow-hidden bg-white rounded-md"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="relative">
               {/* Modal Close Button */}
               <button

@@ -384,8 +384,14 @@ const Earnings = () => {
 
       {/* Transaction Details Modal */}
       {showModal && selectedTransaction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={handleCloseModal}
+        >
+          <div
+            className="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="flex items-center mb-6">
               <h2 className="text-2xl font-semibold  text-[#71ABE0] w-4/5">

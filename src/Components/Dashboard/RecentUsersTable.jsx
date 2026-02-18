@@ -131,8 +131,14 @@ const RecentUsersTable = () => {
 
       {/* =========================View User Modal========================= */}
       {isModalOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md mx-4 bg-white rounded-lg shadow-xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={handleCloseModal}
+        >
+          <div
+            className="w-full max-w-md mx-4 bg-white rounded-lg shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="flex items-center justify-between p-6 border-b">
               <h2 className="flex-1 text-2xl font-semibold text-center text-[#71ABE0]">
                 User Details
@@ -185,8 +191,14 @@ const RecentUsersTable = () => {
 
       {/*================================= Block Confirmation Modal================================= */}
       {isConfirmModalOpen && userToBlock && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="w-full max-w-sm p-6 mx-4 text-center bg-white rounded-lg shadow-xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+          onClick={handleCancelBlock}
+        >
+          <div
+            className="w-full max-w-sm p-6 mx-4 text-center bg-white rounded-lg shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             <h2 className="mb-6 text-xl font-semibold text-gray-900">
               Do you want to block this user?
             </h2>
