@@ -204,11 +204,6 @@ const AdsSetup = () => {
     reader.readAsDataURL(file);
   };
 
-  const handlePreviewClick = (url) => {
-    if (!url || typeof window === "undefined") return;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
   const handleEdit = (ad) => {
     setEditingAd(ad);
     setIsCreating(false);
@@ -363,7 +358,7 @@ const AdsSetup = () => {
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="flex flex-col gap-2 lg:col-span-2">
+            <div className="flex flex-col gap-2">
               <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
                 Keyword Search
               </label>
@@ -605,56 +600,6 @@ const AdsSetup = () => {
           )}
         </div>
       </section>
-      <section className="space-y-6">
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900">
-            In-app Card Preview
-          </h3>
-          <p className="text-sm text-gray-500">
-            Matches the shopping layout your users see inside the app. Each card
-            uses your image, copy, price, and link.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {displayAds.map((ad) => (
-            <div
-              key={`${ad.id}-preview`}
-              className="flex flex-col h-full p-4 bg-white border border-gray-100 rounded-2xl shadow-sm"
-            >
-              <span className="inline-flex text-[11px] font-semibold uppercase tracking-wide text-[#71ABE0] bg-[#E9F2FB] px-3 py-1 rounded-full self-start">
-                {ad.category || "Category"}
-              </span>
-              <img
-                src={ad.image || placeholderImage}
-                alt={ad.productName || "Ad creative"}
-                className="object-cover w-full h-40 mt-4 rounded-xl"
-              />
-              <div className="flex flex-col flex-1 mt-4 space-y-1">
-                <h4 className="text-lg font-semibold text-gray-900">
-                  {ad.productName || "Untitled product"}
-                </h4>
-                <p className="text-sm text-gray-500 overflow-hidden text-ellipsis">
-                  {ad.description ||
-                    "Add a short description to help users understand the ad."}
-                </p>
-                <p className="mt-auto text-2xl font-bold text-gray-900">
-                  {formatPrice(ad.price)}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handlePreviewClick(ad.url)}
-                disabled={!ad.url}
-                className="w-full px-4 py-2 mt-3 text-sm font-semibold text-white rounded-lg transition-colors bg-[#71ABE0] hover:bg-[#5a94c9] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Open landing page
-              </button>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {(isCreating || editingAd) && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black bg-opacity-40"
