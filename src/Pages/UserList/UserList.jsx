@@ -94,9 +94,9 @@ const UserList = () => {
 
   return (
     <div className="p-4 bg-gray-50">
-      <div className="mx-auto bg-white border rounded-2xl border-slate-100 shadow-sm">
+      <div className="mx-auto overflow-hidden bg-white border rounded-2xl border-slate-100 shadow-sm">
         {/* Header */}
-        <div className="sticky top-0 z-10 px-6 py-4 bg-[#71ABE0]">
+        <div className="sticky top-0 z-10 px-6 py-4 bg-[#71ABE0] rounded-t-2xl">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold text-white">User List</h1>
 

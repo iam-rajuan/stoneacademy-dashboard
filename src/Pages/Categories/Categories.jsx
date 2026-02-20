@@ -144,9 +144,9 @@ const Categories = () => {
 
   return (
     <div className="w-full p-6 bg-gray-50">
-      <div className="bg-white border rounded-2xl border-slate-100 shadow-sm">
+      <div className="overflow-hidden bg-white border rounded-2xl border-slate-100 shadow-sm">
         {/*=================================== Header ===================================*/}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-[#71ABE0]">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-[#71ABE0] rounded-t-2xl">
           <h1 className="text-2xl font-semibold text-white">Categories</h1>
           <button
             onClick={handleAddCategory}

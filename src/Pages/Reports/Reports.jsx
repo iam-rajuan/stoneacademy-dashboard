@@ -64,11 +64,11 @@ const Reports = () => {
 
   return (
     <div className="p-6 bg-gray-50">
-      <div className="mx-auto bg-white border rounded-2xl border-slate-100 shadow-sm">
+      <div className="mx-auto overflow-hidden bg-white border rounded-2xl border-slate-100 shadow-sm">
         {/* Card Container */}
         <div className="bg-white">
           {/* Header */}
-          <div className="sticky top-0 z-10 px-6 py-4 text-white bg-[#71ABE0]">
+          <div className="sticky top-0 z-10 px-6 py-4 text-white bg-[#71ABE0] rounded-t-2xl">
             <h1 className="text-xl font-semibold">Reports</h1>
           </div>
 
