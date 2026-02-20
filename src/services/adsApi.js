@@ -1,28 +1,44 @@
-import { apiRequest, createPath } from "./httpClient";
+import { apiRequest, apiRequestWithFallback, createPath } from "./httpClient";
 
-export const listAds = (query = {}) => apiRequest("/admin/ads", { query });
+export const listAds = (query = {}) =>
+  apiRequestWithFallback(["/admin/ads", "/ads/admin"], { query });
 
 export const createAd = (body) =>
-  apiRequest("/admin/ads", {
+  apiRequestWithFallback(["/admin/ads", "/ads/admin"], {
     method: "POST",
     body,
     contentType: body instanceof FormData ? null : "application/json",
   });
 
 export const updateAd = ({ id, body }) =>
-  apiRequest(createPath("/admin/ads/:id", { id }), {
-    method: "PUT",
-    body,
-    contentType: body instanceof FormData ? null : "application/json",
+  apiRequestWithFallback(
+    [createPath("/admin/ads/:id", { id }), createPath("/ads/admin/:id", { id })],
+    {
+      method: "PATCH",
+      body,
+      contentType: body instanceof FormData ? null : "application/json",
+    }
+  ).catch((error) => {
+    if (error?.status === 404 || error?.status === 405) {
+      return apiRequest(createPath("/admin/ads/:id", { id }), {
+        method: "PUT",
+        body,
+        contentType: body instanceof FormData ? null : "application/json",
+      });
+    }
+    throw error;
   });
 
 export const deleteAd = ({ id }) =>
-  apiRequest(createPath("/admin/ads/:id", { id }), {
-    method: "DELETE",
-  });
+  apiRequestWithFallback(
+    [createPath("/admin/ads/:id", { id }), createPath("/ads/admin/:id", { id })],
+    { method: "DELETE" }
+  );
 
 export const updateAdStatus = ({ id, body }) =>
-  apiRequest(createPath("/admin/ads/:id/status", { id }), {
-    method: "PATCH",
-    body,
+  updateAd({
+    id,
+    body: {
+      status: body?.status,
+    },
   });
