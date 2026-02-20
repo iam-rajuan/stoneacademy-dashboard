@@ -1,11 +1,15 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { isAdminAuthenticated } from "../utils/auth";
 
 const PrivateRoute = () => {
-    const user = localStorage.getItem("user");
-    console.log("user from PrivateRoute", user);
-    // if (!user) return <Navigate to="/sign-in" />
+  const location = useLocation();
+  const isAuthenticated = isAdminAuthenticated();
 
-    return <Outlet />
+  if (!isAuthenticated) {
+    return <Navigate to="/sign-in" replace state={{ from: location }} />;
+  }
+
+  return <Outlet />;
 };
 
 export default PrivateRoute;

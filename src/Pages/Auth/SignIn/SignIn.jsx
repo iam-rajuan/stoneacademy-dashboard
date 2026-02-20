@@ -1,25 +1,36 @@
 import { Checkbox, Form, Input, Typography } from "antd";
-import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
 import brandlogo from "../../../assets/image/stone-logo.png";
+import { isAdminAuthenticated, setAdminSession } from "../../../utils/auth";
 
 const SignIn = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showpassword, setShowpassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const redirectPath = location.state?.from?.pathname || "/dashboard";
 
   const togglePasswordVisibility = () => {
-    setShowpassword(!showpassword)
+    setShowpassword(!showpassword);
   };
+
+  useEffect(() => {
+    if (isAdminAuthenticated()) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   const onFinish = (values) => {
     setLoading(true);
-    // Simulating login without actual API call
-    setTimeout(() => {
-      setLoading(false);
-      navigate("/dashboard");
-    }, 1500);
+
+    setAdminSession({
+      email: values.email.trim().toLowerCase(),
+    });
+
+    setLoading(false);
+    navigate(redirectPath, { replace: true });
   };
 
   return (
@@ -42,22 +53,37 @@ const SignIn = () => {
                   Please enter your email and password to continue
                 </Typography.Text>
               </div>
-              <Form.Item name="email" label={<p className=" text-md">Email</p>}>
+              <Form.Item
+                name="email"
+                label={<p className=" text-md">Email</p>}
+                rules={[
+                  { required: true, message: "Please enter your email" },
+                  { type: "email", message: "Please enter a valid email" },
+                ]}
+              >
                 <Input
-                  // required
                   className=" text-md"
+                  type="email"
+                  autoComplete="email"
                   placeholder="Your Email"
                 />
               </Form.Item>
               <Form.Item
                 name="password"
                 label={<p className=" text-md">Password</p>}
+                rules={[
+                  { required: true, message: "Please enter your password" },
+                  {
+                    min: 6,
+                    message: "Password must be at least 6 characters",
+                  },
+                ]}
               >
                 <div className="relative flex items-center justify-center">
                   <Input
-                    // required
                     className=" text-md"
-                    type={showpassword ? "password" : "text"}
+                    type={showpassword ? "text" : "password"}
+                    autoComplete="current-password"
                     placeholder="Password"
                   />
                   <div className="absolute right-0 flex justify-center px-3">
@@ -89,7 +115,7 @@ const SignIn = () => {
                   type="submit"
                   disabled={loading}
                 >
-                  Sign in
+                  {loading ? "Signing in..." : "Sign in"}
                 </button>
               </Form.Item>
             </Form>

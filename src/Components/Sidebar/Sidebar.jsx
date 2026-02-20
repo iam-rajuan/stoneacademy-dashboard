@@ -1,6 +1,6 @@
 import { FiLogOut } from "react-icons/fi";
 import { BiChevronDown } from "react-icons/bi";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { MdDashboard } from "react-icons/md";
 import brandlogo from "../../assets/image/stone-logo.png";
 import {
@@ -14,9 +14,11 @@ import {
 } from "lucide-react";
 import { BsBadgeAd } from "react-icons/bs";
 import { SiActivitypub } from "react-icons/si";
+import { clearAdminSession } from "../../utils/auth";
 
 const Sidebar = ({ closeDrawer }) => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const menuItems = [
     {
@@ -72,6 +74,11 @@ const Sidebar = ({ closeDrawer }) => {
     },
   ];
 
+  const handleLogout = () => {
+    clearAdminSession();
+    navigate("/sign-in", { replace: true });
+  };
+
   return (
     <div className="flex flex-col h-auto p-3 w-72">
       <div className="mx-auto">
@@ -107,12 +114,14 @@ const Sidebar = ({ closeDrawer }) => {
       </div>
 
       <div className="mt-20">
-        <Link to="/sign-in">
-          <div className="flex items-center justify-center w-full py-3 text-xl text-red-500 rounded-lg cursor-pointer">
-            <FiLogOut className="text-xl" />
-            <p className="ml-2">Log out</p>
-          </div>
-        </Link>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex items-center justify-center w-full py-3 text-xl text-red-500 rounded-lg cursor-pointer"
+        >
+          <FiLogOut className="text-xl" />
+          <p className="ml-2">Log out</p>
+        </button>
       </div>
     </div>
   );
