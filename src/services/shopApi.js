@@ -23,7 +23,7 @@ export const adminUpdateProduct = ({ productId, body }) =>
 export const adminToggleProductStatus = ({ productId, status }) =>
   apiRequest(
     createPath("/shop/admin/products/:productId/status", { productId }),
-    { method: "PATCH", body: { status } }
+    { method: "PATCH", body: { isActive: Boolean(status) } }
   );
 
 export const adminDeleteProduct = ({ productId }) =>

@@ -1,62 +1,22 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Edit, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { MdDelete } from "react-icons/md";
 import { CiPower } from "react-icons/ci";
+import {
+  adminCreateProduct,
+  adminDeleteProduct,
+  adminListProducts,
+  adminToggleProductStatus,
+  adminUpdateProduct,
+} from "../../services/shopApi";
 
-const productCategories = [
+const defaultCategories = [
   "Protein",
   "Fitness Tracker",
   "Sport Earbuds",
   "Premium Yoga Mat",
   "Supplements",
   "Accessories",
-];
-
-const initialAds = [
-  {
-    id: "01",
-    category: "Protein",
-    productName: "Whey Protein Plus",
-    description: "Vanilla flavor 2lbs",
-    price: 49,
-    url: "https://example.com/whey-protein-plus",
-    isActive: true,
-    image:
-      "https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=400&q=80",
-  },
-  {
-    id: "02",
-    category: "Fitness Tracker",
-    productName: "Heart rate monitor",
-    description: "Advanced sensors",
-    price: 129,
-    url: "https://example.com/heart-rate-monitor",
-    isActive: true,
-    image:
-      "https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?auto=format&fit=crop&w=400&q=80",
-  },
-  {
-    id: "03",
-    category: "Sport Earbuds",
-    productName: "Wireless, waterproof",
-    description: "Premium sound quality",
-    price: 89,
-    url: "https://example.com/sport-earbuds",
-    isActive: false,
-    image:
-      "https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=400&q=80",
-  },
-  {
-    id: "04",
-    category: "Premium Yoga Mat",
-    productName: "Non-slip, 6mm thick",
-    description: "Premium quality material",
-    price: 39,
-    url: "https://example.com/premium-yoga-mat",
-    isActive: true,
-    image:
-      "https://images.unsplash.com/photo-1549576490-b0b4831ef60a?auto=format&fit=crop&w=400&q=80",
-  },
 ];
 
 const createBlankAdForm = () => ({
@@ -68,6 +28,7 @@ const createBlankAdForm = () => ({
   url: "",
   isActive: false,
   image: "",
+  imageFile: null,
 });
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
@@ -90,17 +51,87 @@ const parsePriceValue = (value) => {
   return Number.isNaN(numeric) ? 0 : numeric;
 };
 
-const computeNextAdId = (collection) => {
-  const numericIds = collection
-    .map((ad) => Number.parseInt(ad.id, 10))
-    .filter((id) => Number.isFinite(id));
-  const highest = numericIds.length ? Math.max(...numericIds) : 0;
-  return (highest + 1).toString().padStart(2, "0");
+const extractItems = (payload) => {
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.items)) return payload.data.items;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload)) return payload;
+  return [];
 };
 
+const toBooleanFilter = (value) => {
+  if (value === "active") return true;
+  if (value === "inactive") return false;
+  return undefined;
+};
+
+const normalizeProducts = (payload) => {
+  const items = extractItems(payload);
+  return items.map((item) => {
+    const id = item?.id || item?._id;
+    return {
+      id: String(id || ""),
+      category: item?.category || "",
+      productName: item?.name || "",
+      description: item?.description || "",
+      price: item?.price ?? "",
+      url: item?.ctaUrl || item?.destinationUrl || "",
+      isActive: Boolean(item?.isActive),
+      image: item?.imageUrl || "",
+      createdAt: item?.createdAt || null,
+    };
+  });
+};
+
+const buildProductPayload = (formData, { withImage }) => {
+  const parsedPrice = Number.parseFloat(formData.price);
+  const price = Number.isNaN(parsedPrice) ? 0 : parsedPrice;
+  const payload = {
+    name: formData.productName.trim(),
+    category: formData.category.trim() || undefined,
+    description: formData.description.trim() || undefined,
+    price,
+    destinationUrl: formData.url.trim(),
+    imageUrl:
+      formData.image && typeof formData.image === "string" && !formData.image.startsWith("data:")
+        ? formData.image
+        : undefined,
+    isActive: Boolean(formData.isActive),
+    stock: 0,
+  };
+
+  if (withImage) {
+    const body = new FormData();
+    body.append("name", payload.name);
+    if (payload.category) body.append("category", payload.category);
+    if (payload.description) body.append("description", payload.description);
+    body.append("price", String(payload.price));
+    body.append("destinationUrl", payload.destinationUrl);
+    if (payload.imageUrl) body.append("imageUrl", payload.imageUrl);
+    body.append("isActive", String(payload.isActive));
+    body.append("stock", String(payload.stock));
+    body.append("image", formData.imageFile);
+    return body;
+  }
+
+  return payload;
+};
+
+const normalizeUrlInput = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const parsed = new URL(withProtocol);
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+};
 
 const AdsSetup = () => {
-  const [ads, setAds] = useState(initialAds);
+  const [ads, setAds] = useState([]);
   const [editingAd, setEditingAd] = useState(null);
   const [deletingAd, setDeletingAd] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -109,12 +140,37 @@ const AdsSetup = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const placeholderImage =
     "https://via.placeholder.com/400x240.png?text=Ad+Preview";
 
+  const loadAds = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const payload = await adminListProducts({
+        page: 1,
+        limit: 100,
+        q: searchTerm.trim() || undefined,
+        category: categoryFilter === "all" ? undefined : categoryFilter,
+        active: toBooleanFilter(statusFilter),
+      });
+      setAds(normalizeProducts(payload));
+    } catch {
+      setAds([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchTerm, categoryFilter, statusFilter]);
+
+  useEffect(() => {
+    loadAds();
+  }, [loadAds]);
+
   const categoryOptions = useMemo(() => {
     const seen = new Map();
-    [...productCategories, ...ads.map((ad) => ad.category || "")].forEach((category) => {
+    [...defaultCategories, ...ads.map((ad) => ad.category || "")].forEach((category) => {
       const normalized = category.trim();
       if (!normalized) return;
       const key = normalized.toLowerCase();
@@ -142,31 +198,7 @@ const AdsSetup = () => {
   }, [ads]);
 
   const displayAds = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    const normalizedCategory = categoryFilter.toLowerCase();
-
-    const filtered = ads.filter((ad) => {
-      const matchesCategory =
-        categoryFilter === "all" ||
-        (ad.category && ad.category.toLowerCase() === normalizedCategory);
-
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" && ad.isActive) ||
-        (statusFilter === "inactive" && !ad.isActive);
-
-      const matchesSearch = normalizedSearch
-        ? [ad.productName, ad.description, ad.url]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase()
-            .includes(normalizedSearch)
-        : true;
-
-      return matchesCategory && matchesStatus && matchesSearch;
-    });
-
-    const sortedAds = [...filtered].sort((a, b) => {
+    return [...ads].sort((a, b) => {
       if (sortBy === "price-desc") {
         return parsePriceValue(b.price) - parsePriceValue(a.price);
       }
@@ -177,13 +209,11 @@ const AdsSetup = () => {
         return (a.productName || "").localeCompare(b.productName || "");
       }
 
-      const aId = Number.parseInt(a.id, 10) || 0;
-      const bId = Number.parseInt(b.id, 10) || 0;
-      return bId - aId;
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
     });
-
-    return sortedAds;
-  }, [ads, categoryFilter, searchTerm, sortBy, statusFilter]);
+  }, [ads, sortBy]);
 
   const handleInputChange = (field, value) =>
     setFormData((prev) => ({
@@ -199,7 +229,11 @@ const AdsSetup = () => {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      handleInputChange("image", reader.result ?? "");
+      setFormData((prev) => ({
+        ...prev,
+        image: reader.result ?? "",
+        imageFile: file,
+      }));
     };
     reader.readAsDataURL(file);
   };
@@ -217,6 +251,7 @@ const AdsSetup = () => {
       url: ad.url || "",
       isActive: ad.isActive ?? false,
       image: ad.image || "",
+      imageFile: null,
     });
   };
 
@@ -240,43 +275,76 @@ const AdsSetup = () => {
     resetForm();
   };
 
-  const handleInlineStatusToggle = (adId) => {
-    setAds((prev) =>
-      prev.map((ad) =>
-        ad.id === adId
-          ? {
-              ...ad,
-              isActive: !ad.isActive,
-            }
-          : ad
-      )
-    );
-  };
-
-  const handleConfirmDelete = () => {
-    if (deletingAd) {
-      setAds((prev) => prev.filter((ad) => ad.id !== deletingAd.id));
+  const handleInlineStatusToggle = async (ad) => {
+    try {
+      await adminToggleProductStatus({
+        productId: ad.id,
+        status: !ad.isActive,
+      });
+      await loadAds();
+    } catch {
+      alert("Failed to update status");
     }
-    setDeletingAd(null);
   };
 
-  const handleSave = () => {
-    const parsedPrice =
-      formData.price === "" ? "" : Number.parseFloat(formData.price);
-    const payload = {
-      ...formData,
-      price: Number.isNaN(parsedPrice) ? formData.price : parsedPrice,
-    };
+  const handleConfirmDelete = async () => {
+    if (!deletingAd) return;
+    try {
+      setIsDeleting(true);
+      await adminDeleteProduct({ productId: deletingAd.id });
+      setDeletingAd(null);
+      await loadAds();
+    } catch {
+      alert("Failed to delete ad");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
-    if (editingAd) {
-      setAds((prev) =>
-        prev.map((ad) => (ad.id === editingAd.id ? { ...ad, ...payload } : ad))
-      );
-      closeEditModal();
-    } else {
-      const nextId = computeNextAdId(ads);
-      setAds((prev) => [{ ...payload, id: nextId }, ...prev]);
-      closeCreateModal();
+  const handleSave = async () => {
+    if (!formData.productName.trim()) {
+      alert("Product name is required");
+      return;
+    }
+    if (!formData.url.trim()) {
+      alert("Destination URL is required");
+      return;
+    }
+    if (formData.price === "" || Number.isNaN(Number(formData.price))) {
+      alert("Valid price is required");
+      return;
+    }
+    const normalizedUrl = normalizeUrlInput(formData.url);
+    if (!normalizedUrl) {
+      alert("Please enter a valid destination URL");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const preparedForm = {
+        ...formData,
+        url: normalizedUrl,
+      };
+      if (editingAd) {
+        const body = buildProductPayload(preparedForm, {
+          withImage: Boolean(formData.imageFile),
+        });
+        await adminUpdateProduct({
+          productId: editingAd.id,
+          body,
+        });
+        closeEditModal();
+      } else {
+        const body = buildProductPayload(preparedForm, { withImage: true });
+        await adminCreateProduct(body);
+        closeCreateModal();
+      }
+      await loadAds();
+    } catch (error) {
+      alert(error?.message || "Failed to save ad");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -292,8 +360,7 @@ const AdsSetup = () => {
               Ads Setup Workspace
             </h1>
             <p className="text-sm text-gray-500">
-              Search, filter, and optimize every placement from one view. All
-              updates sync instantly to the preview cards below.
+              Search, filter, and optimize every placement from one view.
             </p>
           </div>
           <button
@@ -308,41 +375,23 @@ const AdsSetup = () => {
 
         <div className="grid gap-4 mt-8 md:grid-cols-2 xl:grid-cols-4">
           <div className="p-4 bg-[#F4F8FC] rounded-xl">
-            <p className="text-xs font-medium text-gray-500 uppercase">
-              Active Ads
-            </p>
-            <p className="mt-2 text-3xl font-semibold text-gray-900">
-              {stats.activeCount}
-            </p>
-            <p className="text-sm text-gray-500">
-              {stats.activeCount} of {ads.length} live
-            </p>
+            <p className="text-xs font-medium text-gray-500 uppercase">Active Ads</p>
+            <p className="mt-2 text-3xl font-semibold text-gray-900">{stats.activeCount}</p>
+            <p className="text-sm text-gray-500">{stats.activeCount} of {ads.length} live</p>
           </div>
           <div className="p-4 bg-[#F4F8FC] rounded-xl">
-            <p className="text-xs font-medium text-gray-500 uppercase">
-              Catalog Value
-            </p>
-            <p className="mt-2 text-3xl font-semibold text-gray-900">
-              {formatPrice(stats.totalValue)}
-            </p>
+            <p className="text-xs font-medium text-gray-500 uppercase">Catalog Value</p>
+            <p className="mt-2 text-3xl font-semibold text-gray-900">{formatPrice(stats.totalValue)}</p>
             <p className="text-sm text-gray-500">Combined price across ads</p>
           </div>
           <div className="p-4 bg-[#F4F8FC] rounded-xl">
-            <p className="text-xs font-medium text-gray-500 uppercase">
-              Avg. Product Price
-            </p>
-            <p className="mt-2 text-3xl font-semibold text-gray-900">
-              {formatPrice(stats.averagePrice)}
-            </p>
+            <p className="text-xs font-medium text-gray-500 uppercase">Avg. Product Price</p>
+            <p className="mt-2 text-3xl font-semibold text-gray-900">{formatPrice(stats.averagePrice)}</p>
             <p className="text-sm text-gray-500">Based on current catalog</p>
           </div>
           <div className="p-4 bg-[#F4F8FC] rounded-xl">
-            <p className="text-xs font-medium text-gray-500 uppercase">
-              Categories Live
-            </p>
-            <p className="mt-2 text-3xl font-semibold text-gray-900">
-              {stats.categoriesInUse}
-            </p>
+            <p className="text-xs font-medium text-gray-500 uppercase">Categories Live</p>
+            <p className="mt-2 text-3xl font-semibold text-gray-900">{stats.categoriesInUse}</p>
             <p className="text-sm text-gray-500">Unique categories in rotation</p>
           </div>
         </div>
@@ -352,9 +401,7 @@ const AdsSetup = () => {
         <div className="sticky top-0 z-20 p-6 space-y-5 bg-white border border-gray-100 rounded-2xl shadow-sm">
           <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
             <SlidersHorizontal className="w-4 h-4 text-[#71ABE0]" />
-            <span>
-              Showing {displayAds.length} of {ads.length} ads
-            </span>
+            <span>Showing {displayAds.length} ads</span>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -385,9 +432,7 @@ const AdsSetup = () => {
               >
                 <option value="all">All categories</option>
                 {categoryOptions.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
+                  <option key={category} value={category}>{category}</option>
                 ))}
               </select>
             </div>
@@ -426,180 +471,111 @@ const AdsSetup = () => {
         </div>
 
         <div className="p-6 bg-white border border-gray-100 rounded-2xl shadow-sm">
-          {displayAds.length === 0 ? (
+          {isLoading ? (
+            <div className="py-12 text-center">
+              <p className="text-lg font-semibold text-gray-900">Loading ads...</p>
+            </div>
+          ) : displayAds.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-lg font-semibold text-gray-900">
                 No ads match the current filters
               </p>
-              <p className="mt-2 text-sm text-gray-500">
-                Adjust filters above or create a new ad to see it here.
-              </p>
             </div>
           ) : (
-            <>
-              <div className="hidden md:block">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs font-semibold tracking-wide text-gray-500 uppercase bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-4">ID</th>
-                        <th className="px-6 py-4">Product</th>
-                        <th className="px-6 py-4">Category</th>
-                        <th className="px-6 py-4">Price</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {displayAds.map((ad) => (
-                        <tr key={ad.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 font-medium text-gray-900">
-                            {ad.id}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={ad.image || placeholderImage}
-                                alt={ad.productName || "Ad creative"}
-                                className="object-cover rounded-lg w-12 h-12"
-                              />
-                              <div>
-                                <p className="font-semibold text-gray-900">
-                                  {ad.productName || "Untitled"}
-                                </p>
-                                <p className="text-xs text-gray-500 max-w-[220px] truncate">
-                                  {ad.description || "No description"}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-[#E9F2FB] text-[#71ABE0]">
-                              {ad.category || "Uncategorized"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 font-semibold text-gray-900">
-                            {formatPrice(ad.price)}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  className="sr-only peer"
-                                  checked={ad.isActive}
-                                  onChange={() => handleInlineStatusToggle(ad.id)}
-                                />
-                                <span className="w-11 h-6 bg-gray-300 rounded-full peer peer-focus:outline-none peer-checked:bg-[#71ABE0] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:h-5 after:w-5 after:rounded-full after:transition-all peer-checked:after:translate-x-full"></span>
-                              </label>
-                              <span
-                                className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${
-                                  ad.isActive
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-gray-100 text-gray-600"
-                                }`}
-                              >
-                                {ad.isActive ? "Active" : "Inactive"}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleEdit(ad)}
-                                className="p-2 transition-colors bg-blue-50 rounded-full hover:bg-blue-100"
-                                title="Edit"
-                              >
-                                <Edit className="w-4 h-4 text-blue-600" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(ad)}
-                                className="p-2 transition-colors bg-red-50 rounded-full hover:bg-red-100"
-                                title="Delete"
-                              >
-                                <MdDelete className="w-4 h-4 text-red-600" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-4 md:hidden">
-                {displayAds.map((ad) => (
-                  <div
-                    key={`${ad.id}-mobile`}
-                    className="p-4 border border-gray-100 rounded-2xl shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-medium text-gray-500">
-                          #{ad.id}
-                        </p>
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {ad.productName || "Untitled"}
-                        </h3>
-                      </div>
-                      <span
-                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                          ad.isActive
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {ad.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {ad.description || "No description"}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-3 mt-4">
-                      <span className="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-[#E9F2FB] text-[#71ABE0]">
-                        {ad.category || "Uncategorized"}
-                      </span>
-                      <p className="text-base font-semibold text-gray-900">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs font-semibold tracking-wide text-gray-500 uppercase bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-4">ID</th>
+                    <th className="px-6 py-4">Product</th>
+                    <th className="px-6 py-4">Category</th>
+                    <th className="px-6 py-4">Price</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {displayAds.map((ad, index) => (
+                    <tr key={ad.id || `${index}`} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-medium text-gray-900">
+                        {String(index + 1).padStart(2, "0")}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={ad.image || placeholderImage}
+                            alt={ad.productName || "Ad creative"}
+                            className="object-cover rounded-lg w-12 h-12"
+                          />
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {ad.productName || "Untitled"}
+                            </p>
+                            <p className="text-xs text-gray-500 max-w-[220px] truncate">
+                              {ad.description || "No description"}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-[#E9F2FB] text-[#71ABE0]">
+                          {ad.category || "Uncategorized"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-gray-900">
                         {formatPrice(ad.price)}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={ad.isActive}
-                          onChange={() => handleInlineStatusToggle(ad.id)}
-                        />
-                        <span className="w-11 h-6 bg-gray-300 rounded-full peer peer-checked:bg-[#71ABE0] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:h-5 after:w-5 after:rounded-full after:transition-all peer-checked:after:translate-x-full"></span>
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(ad)}
-                          className="p-2 transition-colors bg-blue-50 rounded-full hover:bg-blue-100"
-                        >
-                          <Edit className="w-4 h-4 text-blue-600" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(ad)}
-                          className="p-2 transition-colors bg-red-50 rounded-full hover:bg-red-100"
-                        >
-                          <MdDelete className="w-4 h-4 text-red-600" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="sr-only peer"
+                              checked={ad.isActive}
+                              onChange={() => handleInlineStatusToggle(ad)}
+                            />
+                            <span className="w-11 h-6 bg-gray-300 rounded-full peer peer-focus:outline-none peer-checked:bg-[#71ABE0] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:h-5 after:w-5 after:rounded-full after:transition-all peer-checked:after:translate-x-full"></span>
+                          </label>
+                          <span
+                            className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${
+                              ad.isActive
+                                ? "bg-green-100 text-green-700"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {ad.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(ad)}
+                            className="p-2 transition-colors bg-blue-50 rounded-full hover:bg-blue-100"
+                            title="Edit"
+                          >
+                            <Edit className="w-4 h-4 text-blue-600" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(ad)}
+                            className="p-2 transition-colors bg-red-50 rounded-full hover:bg-red-100"
+                            title="Delete"
+                          >
+                            <MdDelete className="w-4 h-4 text-red-600" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </section>
+
       {(isCreating || editingAd) && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-40"
@@ -632,10 +608,7 @@ const AdsSetup = () => {
                 <input
                   type="text"
                   value={formData.productName}
-                  onChange={(e) =>
-                    handleInputChange("productName", e.target.value)
-                  }
-                  placeholder="Whey Protein Plus"
+                  onChange={(e) => handleInputChange("productName", e.target.value)}
                   className="w-full px-4 py-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#71ABE0]"
                 />
               </div>
@@ -649,11 +622,10 @@ const AdsSetup = () => {
                   list="ad-categories"
                   value={formData.category}
                   onChange={(e) => handleInputChange("category", e.target.value)}
-                  placeholder="Protein, Accessories..."
                   className="w-full px-4 py-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#71ABE0]"
                 />
                 <datalist id="ad-categories">
-                  {productCategories.map((category) => (
+                  {categoryOptions.map((category) => (
                     <option key={category} value={category} />
                   ))}
                 </datalist>
@@ -666,10 +638,7 @@ const AdsSetup = () => {
                 <textarea
                   rows="3"
                   value={formData.description}
-                  onChange={(e) =>
-                    handleInputChange("description", e.target.value)
-                  }
-                  placeholder="Vanilla flavor 2lbs, clean ingredients..."
+                  onChange={(e) => handleInputChange("description", e.target.value)}
                   className="w-full px-4 py-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#71ABE0]"
                 ></textarea>
               </div>
@@ -685,7 +654,6 @@ const AdsSetup = () => {
                     step="0.01"
                     value={formData.price}
                     onChange={(e) => handleInputChange("price", e.target.value)}
-                    placeholder="49"
                     className="w-full px-4 py-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#71ABE0]"
                   />
                 </div>
@@ -697,12 +665,8 @@ const AdsSetup = () => {
                     type="url"
                     value={formData.url}
                     onChange={(e) => handleInputChange("url", e.target.value)}
-                    placeholder="https://example.com/your-landing-page"
                     className="w-full px-4 py-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#71ABE0]"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Tap the preview button below to open this link in the app.
-                  </p>
                 </div>
               </div>
 
@@ -711,10 +675,6 @@ const AdsSetup = () => {
                   Upload Creative
                 </label>
                 <div className="flex flex-col gap-3 p-4 border border-dashed rounded-xl border-blue-200 bg-blue-50/40">
-                  <p className="text-sm text-gray-600">
-                    Drop a PNG/JPG (max 5MB) to match the card shown in the
-                    mobile preview.
-                  </p>
                   <div className="flex flex-wrap items-center gap-3">
                     <label
                       htmlFor="ad-image-upload"
@@ -755,21 +715,15 @@ const AdsSetup = () => {
                       <CiPower />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Activate Now?
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Turn on to make ad live immediately
-                      </p>
+                      <p className="text-sm font-medium text-gray-900">Activate Now?</p>
+                      <p className="text-xs text-gray-500">Turn on to make ad live immediately</p>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formData.isActive}
-                      onChange={(e) =>
-                        handleInputChange("isActive", e.target.checked)
-                      }
+                      onChange={(e) => handleInputChange("isActive", e.target.checked)}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-gray-300 rounded-full peer peer-checked:bg-[#71ABE0] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
@@ -789,9 +743,10 @@ const AdsSetup = () => {
                 <button
                   type="button"
                   onClick={handleSave}
-                  className="flex-1 px-4 py-3 text-sm font-medium text-white bg-[#71ABE0] rounded-md hover:bg-[#5a94c9] transition-colors"
+                  disabled={isSaving}
+                  className="flex-1 px-4 py-3 text-sm font-medium text-white bg-[#71ABE0] rounded-md hover:bg-[#5a94c9] transition-colors disabled:opacity-60"
                 >
-                  {isCreating ? "Save Ad" : "Save"}
+                  {isSaving ? "Saving..." : isCreating ? "Save Ad" : "Save"}
                 </button>
               </div>
             </div>
@@ -814,8 +769,7 @@ const AdsSetup = () => {
               Do you want to delete this Ad?
             </h3>
             <p className="mb-6 text-sm text-center text-gray-500">
-              {deletingAd.productName || "Unnamed ad"} will be removed from the
-              ad list and mobile feed preview.
+              {deletingAd.productName || "Unnamed ad"} will be removed.
             </p>
 
             <div className="flex justify-center gap-3">
@@ -830,9 +784,10 @@ const AdsSetup = () => {
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 text-sm text-white transition-colors bg-red-600 rounded hover:bg-red-700"
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm text-white transition-colors bg-red-600 rounded hover:bg-red-700 disabled:opacity-60"
               >
-                Delete
+                {isDeleting ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>
