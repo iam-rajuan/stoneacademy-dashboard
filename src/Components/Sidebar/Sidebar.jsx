@@ -76,29 +76,34 @@ const Sidebar = ({ closeDrawer }) => {
 
   const handleLogout = () => {
     clearAdminSession();
+    if (closeDrawer) closeDrawer();
     navigate("/sign-in", { replace: true });
   };
 
   return (
-    <div className="flex flex-col h-auto p-3 w-72">
+    <div className="flex flex-col h-full p-4 bg-white w-72">
       <div className="mx-auto">
         <img src={brandlogo} alt="logo" className="w-40 h-40" />
       </div>
 
-      <div className="flex-1 overflow-y-auto max-h-[calc(100vh-150px)]">
+      <div className="flex-1 pr-1 overflow-y-auto">
         {menuItems.map((item) => {
           const isActive = location.pathname === item.Link;
 
           return (
             <div key={item.label}>
               <div
-                className={`flex justify-between items-center px-5 py-2 my-5 cursor-pointer transition-all hover:bg-[#71ABE0] hover:text-white hover:font-semibold ${
+                className={`flex justify-between items-center px-5 py-2 my-2 rounded-lg cursor-pointer transition-all hover:bg-[#71ABE0] hover:text-white hover:font-semibold ${
                   isActive
                     ? "bg-[#71ABE0] text-white font-semibold"
                     : "text-black"
                 }`}
               >
-                <Link to={item.Link} className="flex items-center w-full gap-3">
+                <Link
+                  to={item.Link}
+                  onClick={closeDrawer}
+                  className="flex items-center w-full gap-3"
+                >
                   {item.icon}
                   <p>{item.label}</p>
                   {item.isDropdown && (
@@ -113,14 +118,14 @@ const Sidebar = ({ closeDrawer }) => {
         })}
       </div>
 
-      <div className="mt-20">
+      <div className="shrink-0 pt-4 mt-4 border-t border-slate-200">
         <button
           type="button"
           onClick={handleLogout}
-          className="flex items-center justify-center w-full py-3 text-xl text-red-500 rounded-lg cursor-pointer"
+          className="flex items-center w-full gap-3 px-5 py-3 text-sm font-semibold text-red-600 transition-colors rounded-xl bg-red-50 hover:bg-red-100"
         >
-          <FiLogOut className="text-xl" />
-          <p className="ml-2">Log out</p>
+          <FiLogOut className="text-lg" />
+          <p>Log out</p>
         </button>
       </div>
     </div>

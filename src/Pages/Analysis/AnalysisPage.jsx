@@ -64,8 +64,8 @@ const AnalysisPage = () => {
   const pagedData = data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <div className="min-h-screen p-4 mt-10 font-sans text-white bg-black sm:p-6">
-      <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
+    <div className="p-4 font-sans text-white bg-black sm:p-6">
+      <div className="sticky top-0 z-10 flex flex-col items-start justify-between gap-4 pb-4 mb-6 sm:flex-row sm:items-center bg-black/95 backdrop-blur">
         <h1 className="text-2xl font-semibold text-white sm:text-3xl">Analysis</h1>
         <input
           type="search"
