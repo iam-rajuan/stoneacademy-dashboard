@@ -1,4 +1,4 @@
-import { apiRequest, createPath } from "./httpClient";
+import { apiRequest, apiRequestWithFallback, createPath } from "./httpClient";
 
 const toListQuery = (query = {}) => ({
   ...query,
@@ -6,13 +6,22 @@ const toListQuery = (query = {}) => ({
 });
 
 export const listEventCreators = (query = {}) =>
-  apiRequest("/admin/event-creators", { query: toListQuery(query) });
+  apiRequestWithFallback(
+    ["/admin/event-creators", "/admin/event-creators/premium"],
+    { query: toListQuery(query) }
+  );
 
 export const getEventCreatorById = ({ id }) =>
-  apiRequest(createPath("/admin/event-creators/:id", { id }));
+  apiRequestWithFallback([
+    createPath("/admin/event-creators/:id", { id }),
+    createPath("/admin/event-creators/premium/:id", { id }),
+  ]);
 
 export const payoutEventCreator = ({ id, body = {} }) =>
-  apiRequest(createPath("/admin/event-creators/:id/payout", { id }), {
-    method: "POST",
-    body,
-  });
+  apiRequestWithFallback(
+    [createPath("/admin/event-creators/:id/payout", { id })],
+    {
+      method: "POST",
+      body,
+    }
+  );

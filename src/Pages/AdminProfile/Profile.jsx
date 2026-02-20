@@ -18,9 +18,9 @@ function Profile({ setActiveTab }) {
         if (!mounted) return;
         const data = payload?.data || payload;
         setUserData({
-          name: data?.name || data?.fullName || "",
+          name: data?.fullName || data?.name || "",
           email: data?.email || "",
-          number: data?.number || data?.phone || "",
+          number: data?.contactNo || data?.phone || data?.number || "",
           address: data?.address || "",
         });
       } catch {

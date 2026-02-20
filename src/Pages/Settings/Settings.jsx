@@ -10,6 +10,11 @@ const Settings = () => {
   const subItems = [
     {
       icon: <CiUser className="w-5 h-5" />,
+      label: "Profile",
+      link: "/settings/profile",
+    },
+    {
+      icon: <CiUser className="w-5 h-5" />,
       label: "Change Password",
       link: "/settings/change-password",
     },

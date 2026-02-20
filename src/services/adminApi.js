@@ -287,12 +287,20 @@ export const markAllNotificationsRead = () =>
     body: { all: true },
   });
 
-export const getSettingsProfile = () => apiRequest("/admin/settings/profile");
+export const getSettingsProfile = () =>
+  apiRequestWithFallback(["/admin/settings/profile", "/admin/profile"]);
 
 export const updateSettingsProfile = (body) =>
-  apiRequest("/admin/settings/profile", { method: "PUT", body });
+  apiRequestWithFallback(["/admin/settings/profile", "/admin/profile"], {
+    method: "PUT",
+    body,
+  });
 
-export const getSettingsSecurity = () => apiRequest("/admin/settings/security");
+export const getSettingsSecurity = () =>
+  apiRequestWithFallback(["/admin/settings/security"]);
 
 export const updateSettingsSecurity = (body) =>
-  apiRequest("/admin/settings/security", { method: "PUT", body });
+  apiRequestWithFallback(["/admin/settings/security", "/admin/password"], {
+    method: "PUT",
+    body,
+  });
