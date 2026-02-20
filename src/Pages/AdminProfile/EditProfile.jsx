@@ -19,9 +19,9 @@ function EditProfile() {
         if (!mounted) return;
         const data = payload?.data || payload;
         setUserData({
-          name: data?.name || data?.fullName || "",
+          name: data?.fullName || data?.name || "",
           email: data?.email || "",
-          number: data?.number || data?.phone || "",
+          number: data?.contactNo || data?.phone || data?.number || "",
           address: data?.address || "",
         });
       } catch {
@@ -40,10 +40,10 @@ function EditProfile() {
     try {
       setSaving(true);
       await updateMyProfile({
-        name: userData.name,
+        fullName: userData.name,
         email: userData.email,
-        number: userData.number,
-        address: userData.address,
+        contactNo: userData.number,
+        phone: userData.number,
       });
     } finally {
       setSaving(false);

@@ -1,13 +1,42 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LuPenLine } from "react-icons/lu";
 import { Link } from "react-router-dom";
 import EditProfile from "./EditProfile";
 import ChangePass from "./ChangePass";
-import Profile from "./Profile"; // ✅ Added missing import
+import Profile from "./Profile";
+import { getMyProfile, updateMyProfile } from "../../services/adminApi";
+import adminImage from "../../assets/image/adminkickclick.jpg";
 
 function ProfilePage() {
   const [activeTab, setActiveTab] = useState("/settings/profile");
-  const [profilePic, setProfilePic] = useState(null);
+  const [profilePic, setProfilePic] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const payload = await getMyProfile();
+        if (!mounted) return;
+        const data = payload?.data || payload;
+        const nextPhoto = data?.profilePhoto || "";
+        setProfilePic(nextPhoto);
+        window.dispatchEvent(
+          new CustomEvent("admin-profile-updated", {
+            detail: { profilePhoto: nextPhoto, name: data?.name || data?.fullName || "" },
+          })
+        );
+      } catch {
+        if (mounted) setProfilePic("");
+      }
+    };
+
+    loadProfile();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const getTabTitle = () => {
     switch (activeTab) {
@@ -22,10 +51,32 @@ function ProfilePage() {
     }
   };
 
-  const handleProfilePicChange = (event) => {
+  const handleProfilePicChange = async (event) => {
     const file = event.target.files[0];
-    if (file) {
-      setProfilePic(URL.createObjectURL(file));
+    if (!file) return;
+
+    const localPreview = URL.createObjectURL(file);
+    setProfilePic(localPreview);
+
+    try {
+      setUploadingPhoto(true);
+      const formData = new FormData();
+      formData.append("photo", file);
+      const payload = await updateMyProfile(formData);
+      const data = payload?.data || payload;
+      if (data?.profilePhoto) {
+        setProfilePic(data.profilePhoto);
+        window.dispatchEvent(
+          new CustomEvent("admin-profile-updated", {
+            detail: { profilePhoto: data.profilePhoto },
+          })
+        );
+      }
+    } catch {
+      // Keep local preview if upload fails.
+    } finally {
+      setUploadingPhoto(false);
+      event.target.value = "";
     }
   };
 
@@ -50,11 +101,11 @@ function ProfilePage() {
             <div className="mt-10 ">
               <div className="w-[122px] relative h-[122px] mx-auto rounded-full border-4 shadow-xl flex justify-center items-center">
                 <img
-                  src={profilePic || ""}
+                  src={profilePic || adminImage}
                   alt="profile"
-                  className="w-32 h-32 overflow-hidden rounded-full"
+                  className="w-32 h-32 overflow-hidden rounded-full object-cover"
                 />
-                <div className="absolute right-0 p-2 rounded-full shadow-md cursor-pointer bottom-2">
+                <div className="absolute top-0 right-0 p-2 rounded-full shadow-md cursor-pointer bg-white">
                   <label htmlFor="profilePicUpload" className="cursor-pointer">
                     <LuPenLine />
                   </label>
@@ -68,6 +119,9 @@ function ProfilePage() {
               </div>
             </div>
           </div>
+          {uploadingPhoto ? (
+            <p className="text-xs text-center text-slate-500">Uploading photo...</p>
+          ) : null}
 
           {/* Tab Navigation */}
           <div className="flex items-center justify-center gap-5 my-5 font-semibold text-md md:text-xl">

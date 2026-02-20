@@ -1,20 +1,21 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { RxHamburgerMenu } from "react-icons/rx";
 import { IoMdNotificationsOutline } from "react-icons/io";
 import { Bell, MessageSquareMore } from "lucide-react";
 import adminImage from "../../assets/image/adminkickclick.jpg";
+import { getMyProfile } from "../../services/adminApi";
 
 const Header = ({ showDrawer }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notificationsCount] = useState(5);
+  const [adminProfile, setAdminProfile] = useState({
+    name: "Admin",
+    role: "admin",
+    profilePhoto: "",
+  });
   const navigate = useNavigate();
   const location = useLocation();
-
-  const adminProfile = {
-    name: "James",
-    role: "admin",
-  };
 
   const notifications = [
     { message: "A new user joined your app.", time: "Fri, 12:30pm" },
@@ -24,6 +25,42 @@ const Header = ({ showDrawer }) => {
   ];
 
   const isMessagesActive = location.pathname === "/messages";
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const payload = await getMyProfile();
+        if (!mounted) return;
+        const data = payload?.data || payload;
+        setAdminProfile((prev) => ({
+          ...prev,
+          name: data?.name || data?.fullName || prev.name,
+          profilePhoto: data?.profilePhoto || "",
+        }));
+      } catch {
+        // Keep current local state.
+      }
+    };
+
+    const handleProfileUpdated = (event) => {
+      const detail = event?.detail || {};
+      setAdminProfile((prev) => ({
+        ...prev,
+        name: detail?.name || prev.name,
+        profilePhoto:
+          detail?.profilePhoto !== undefined ? detail.profilePhoto : prev.profilePhoto,
+      }));
+    };
+
+    loadProfile();
+    window.addEventListener("admin-profile-updated", handleProfileUpdated);
+    return () => {
+      mounted = false;
+      window.removeEventListener("admin-profile-updated", handleProfileUpdated);
+    };
+  }, []);
 
   return (
     <div className="relative mt-2">
@@ -72,7 +109,7 @@ const Header = ({ showDrawer }) => {
           <Link to="/settings/profile" >
           <div className="p-2 text-blue-700 transition border border-blue-500 rounded-full hover:bg-blue-50">
             <img
-              src={adminImage}
+              src={adminProfile.profilePhoto || adminImage}
               alt="Admin"
               className="object-cover w-5 h-5 rounded-full"
             />
