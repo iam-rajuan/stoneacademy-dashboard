@@ -227,7 +227,15 @@ export const listSubscriptions = (query = {}) =>
 export const getSubscriptionFees = () => apiRequest("/admin/subscriptions/fees");
 
 export const updateSubscriptionFees = (body) =>
-  apiRequest("/admin/subscriptions/fees", { method: "PUT", body });
+  apiRequestWithFallback(
+    ["/admin/subscriptions/fees"],
+    { method: "PATCH", body }
+  ).catch((error) => {
+    if (error?.status === 404 || error?.status === 405) {
+      return apiRequest("/admin/subscriptions/fees", { method: "PUT", body });
+    }
+    throw error;
+  });
 
 export const getSubscriptionById = ({ id }) =>
   apiRequest(createPath("/admin/subscriptions/:id", { id }));
