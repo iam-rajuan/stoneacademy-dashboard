@@ -51,13 +51,10 @@ const statusClasses = {
 
 const EventCreatorDetails = () => {
   return (
-    <div className="min-h-screen p-4 bg-gray-50">
-      <div
-        style={{ boxShadow: "0px 1px 6px 0px rgba(0, 0, 0, 0.24)" }}
-        className="mx-auto mt-16 overflow-hidden bg-white border border-gray-200 rounded-2xl"
-      >
-        <div className="px-6 py-5 bg-[#71ABE0]">
-          <h1 className="text-2xl font-semibold text-white md:text-4xl">
+    <div className="p-4 bg-gray-50">
+      <div className="mx-auto bg-white border rounded-2xl border-slate-100 shadow-sm">
+        <div className="sticky top-0 z-10 px-6 py-4 bg-[#71ABE0]">
+          <h1 className="text-2xl font-semibold text-white">
             Event Creator
           </h1>
         </div>
@@ -84,7 +81,7 @@ const EventCreatorDetails = () => {
           </div>
 
           <div className="overflow-hidden border border-gray-200 rounded-2xl">
-            <div className="px-4 py-3 text-lg font-semibold text-gray-900 border-b border-gray-200 md:px-6">
+            <div className="px-4 py-3 text-base font-semibold text-gray-900 border-b border-gray-200 md:px-6">
               Events Created
             </div>
 
@@ -152,7 +149,7 @@ const EventCreatorDetails = () => {
               </div>
             </div>
 
-            <button className="inline-flex items-center gap-2 px-5 py-2 mt-6 text-lg text-white rounded-xl bg-[#71ABE0] hover:bg-[#5a9ad7]">
+            <button className="inline-flex items-center gap-2 px-5 py-2 mt-6 text-sm text-white rounded-xl bg-[#71ABE0] hover:bg-[#5a9ad7]">
               <SendHorizontal className="w-5 h-5" />
               Process Payout
             </button>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Search,
   Eye,
@@ -15,40 +15,44 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+const activityTitles = ["Yoga", "Morning Walk", "Walking", "Running", "Cycling", "Meditation"];
+const activityTypes = ["Active", "Event"];
+const hosts = [
+  "John Carter",
+  "Sophia Adams",
+  "Liam Wilson",
+  "Emma Johnson",
+  "Noah Walker",
+  "Olivia Brown",
+  "Mason Davis",
+  "Ava Martinez",
+];
+const statusTypes = ["Ongoing", "Completed", "Upcoming"];
+
 const ActivityEvents = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const activityTitles = ["Yoga", "Morning Walk", "Walking", "Running", "Cycling", "Meditation"];
-  const activityTypes = ["Active", "Event"];
-  const hosts = [
-    "John Carter",
-    "Sophia Adams",
-    "Liam Wilson",
-    "Emma Johnson",
-    "Noah Walker",
-    "Olivia Brown",
-    "Mason Davis",
-    "Ava Martinez",
-  ];
-  const statusTypes = ["Ongoing", "Completed", "Upcoming"];
+  const events = useMemo(
+    () =>
+      Array.from({ length: 20 }, (_, i) => {
+        const title = activityTitles[Math.floor(Math.random() * activityTitles.length)];
+        const type = activityTypes[Math.floor(Math.random() * activityTypes.length)];
+        const host = hosts[Math.floor(Math.random() * hosts.length)];
+        const status = statusTypes[Math.floor(Math.random() * statusTypes.length)];
 
-  const events = Array.from({ length: 20 }, (_, i) => {
-    const title = activityTitles[Math.floor(Math.random() * activityTitles.length)];
-    const type = activityTypes[Math.floor(Math.random() * activityTypes.length)];
-    const host = hosts[Math.floor(Math.random() * hosts.length)];
-    const status = statusTypes[Math.floor(Math.random() * statusTypes.length)];
-
-    return {
-      id: i + 1,
-      title,
-      type,
-      host,
-      status,
-      image: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?fm=jpg&q=60&w=3000",
-    };
-  });
+        return {
+          id: i + 1,
+          title,
+          type,
+          host,
+          status,
+          image: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?fm=jpg&q=60&w=3000",
+        };
+      }),
+    []
+  );
 
   const usersPerPage = 8;
   const totalPages = Math.ceil(events.length / usersPerPage);
@@ -89,11 +93,11 @@ const ActivityEvents = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 bg-gray-50">
-      <div style={{ boxShadow: "0px 1px 6px rgba(0,0,0,0.24)" }} className="mx-auto mt-16">
+    <div className="p-4 bg-gray-50">
+      <div className="mx-auto bg-white border rounded-2xl border-slate-100 shadow-sm">
         
         {/* Header */}
-        <div className="px-6 py-4 mb-6 rounded-tl-lg rounded-tr-lg bg-[#71ABE0]">
+        <div className="sticky top-0 z-10 px-6 py-4 bg-[#71ABE0]">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold text-white">Activities & Events Management</h1>
 
@@ -115,7 +119,7 @@ const ActivityEvents = () => {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-lg shadow-sm">
+        <div className="bg-white">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">

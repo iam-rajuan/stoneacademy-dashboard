@@ -1,6 +1,14 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Search, Eye, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { VscDebugRestart } from "react-icons/vsc";
+
+const randomNames = [
+  "John Carter", "Sophia Adams", "Liam Wilson", "Emma Johnson",
+  "Noah Walker", "Olivia Brown", "Mason Davis", "Ava Martinez",
+  "James Miller", "Amelia Taylor", "Benjamin Moore", "Mia Anderson",
+  "Lucas Thomas", "Charlotte Lee", "Henry White", "Isabella Harris",
+  "Logan Hall", "Evelyn Scott", "Alexander Young", "Grace King"
+];
 
 const BlockedList = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -11,28 +19,22 @@ const BlockedList = () => {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [userToBlock, setUserToBlock] = useState(null);
 
-  // Random name list
-  const randomNames = [
-    "John Carter", "Sophia Adams", "Liam Wilson", "Emma Johnson",
-    "Noah Walker", "Olivia Brown", "Mason Davis", "Ava Martinez",
-    "James Miller", "Amelia Taylor", "Benjamin Moore", "Mia Anderson",
-    "Lucas Thomas", "Charlotte Lee", "Henry White", "Isabella Harris",
-    "Logan Hall", "Evelyn Scott", "Alexander Young", "Grace King"
-  ];
+  const users = useMemo(
+    () =>
+      Array.from({ length: 20 }, (_, i) => {
+        const name = randomNames[Math.floor(Math.random() * randomNames.length)];
 
-  // Generate random users
-  const users = Array.from({ length: 20 }, (_, i) => {
-    const name = randomNames[Math.floor(Math.random() * randomNames.length)];
-
-    return {
-      id: i + 1,
-      name,
-      email: `${name.toLowerCase().replace(/ /g, "")}${i + 1}@gmail.com`,
-      joinedDate: "02-24-2024",
-      avatar:
-        "https://images.unsplash.com/photo-1633332755192-727a05c4013d?fm=jpg&q=60&w=3000",
-    };
-  });
+        return {
+          id: i + 1,
+          name,
+          email: `${name.toLowerCase().replace(/ /g, "")}${i + 1}@gmail.com`,
+          joinedDate: "02-24-2024",
+          avatar:
+            "https://images.unsplash.com/photo-1633332755192-727a05c4013d?fm=jpg&q=60&w=3000",
+        };
+      }),
+    []
+  );
 
   const totalUsers = users.length;
   const usersPerPage = 8;
@@ -101,13 +103,10 @@ const BlockedList = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 bg-gray-50">
-      <div
-        style={{ boxShadow: "0px 1px 6px rgba(0,0,0,0.24)" }}
-        className="mx-auto mt-16"
-      >
+    <div className="p-4 bg-gray-50">
+      <div className="mx-auto overflow-hidden bg-white border rounded-2xl border-slate-100 shadow-sm">
         {/* Header */}
-        <div className="px-6 py-4 mb-6 rounded-tl-lg rounded-tr-lg bg-[#71ABE0]">
+        <div className="sticky top-0 z-10 px-6 py-4 bg-[#71ABE0]">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold text-white">Blocked List</h1>
 
@@ -131,7 +130,7 @@ const BlockedList = () => {
         </div>
 
         {/* TABLE */}
-        <div className="bg-white rounded-lg shadow-sm">
+        <div className="bg-white">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">

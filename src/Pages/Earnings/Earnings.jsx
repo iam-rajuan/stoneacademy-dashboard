@@ -247,41 +247,31 @@ const Earnings = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50">
-      <div className="mx-auto mt-16">
-        <div
-          style={{ boxShadow: "0px 1px 6px 0px rgba(0, 0, 0, 0.24)" }}
-          className="flex flex-wrap justify-between p-5 my-2 rounded-md md:flex-nowrap"
-        >
-          {/*  Today */}
-          <div className="bg-[#f6f6f6] flex justify-center w-1/4 border-r-2 border-[#DADADA]">
-            <div className="flex flex-col gap-5">
-              <p className="text-[#1C2434] text-2xl font-bold">38.6K</p>
-              <p className="text-xl text-[#101010] font-semibold">
-                Today
-              </p>
-            </div>
+    <div className="p-6 bg-gray-50">
+      <div className="sticky top-0 z-10 pb-4 bg-gray-50">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
+            <p className="text-3xl font-bold text-slate-900">38.6K</p>
+            <p className="mt-2 text-base font-semibold text-slate-600">Today</p>
           </div>
-          {/* New User  */}
-          <div className="bg-[##f6f6f6] flex justify-center w-1/4 border-r-2 border-[#DADADA]">
-            <div className="flex flex-col gap-5">
-              <p className="text-[#1C2434] text-2xl font-bold">18.6k</p>
-              <p className="text-xl text-[#101010] font-semibold">
-                This Month
-              </p>
-            </div>
+
+          <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
+            <p className="text-3xl font-bold text-slate-900">18.6K</p>
+            <p className="mt-2 text-base font-semibold text-slate-600">
+              This Month
+            </p>
           </div>
-          {/* Old User */}
-          <div className="bg-[##f6f6f6] flex justify-center w-1/4">
-            <div className="flex flex-col gap-5">
-              <p className="text-[#1C2434] text-2xl font-bold">4.9M</p>
-              <p className="text-xl text-[#101010] font-semibold">
-                Total Revenue
-              </p>
-            </div>
+
+          <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
+            <p className="text-3xl font-bold text-slate-900">4.9M</p>
+            <p className="mt-2 text-base font-semibold text-slate-600">
+              Total Revenue
+            </p>
           </div>
         </div>
+      </div>
 
+      <div className="mx-auto">
         <div className="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm">
           {/* Table */}
           <div className="overflow-x-auto">

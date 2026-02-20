@@ -276,13 +276,10 @@ const Subscriptions = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50">
-      <div
-        style={{ boxShadow: "0px 1px 6px 0px rgba(0, 0, 0, 0.24)" }}
-        className="mx-auto mt-16"
-      >
+    <div className="p-6 bg-gray-50">
+      <div className="mx-auto bg-white border rounded-2xl border-slate-100 shadow-sm">
         {/*========================== Header ==========================*/}
-        <div className="px-6 py-4 bg-[#71ABE0] rounded-t-lg">
+        <div className="sticky top-0 z-10 px-6 py-4 bg-[#71ABE0]">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold text-white">Subscriptions</h1>
             <div className="flex items-center gap-4">
@@ -311,7 +308,7 @@ const Subscriptions = () => {
         </div>
 
         {/*============================== Table============================== */}
-        <div className="overflow-hidden bg-white border border-gray-200 rounded-b-lg shadow-sm">
+        <div className="overflow-hidden bg-white">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="border-b border-gray-200 bg-gray-50">

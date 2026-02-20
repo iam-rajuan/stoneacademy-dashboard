@@ -286,7 +286,7 @@ const AdsSetup = () => {
   };
 
   return (
-    <div className="w-full max-w-6xl px-4 mx-auto mt-20 space-y-10 lg:px-0">
+    <div className="w-full p-4 space-y-6 bg-gray-50">
       <section className="p-6 bg-white border border-gray-100 rounded-2xl shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -354,7 +354,7 @@ const AdsSetup = () => {
       </section>
 
       <section className="space-y-4">
-        <div className="p-6 bg-white border border-gray-100 rounded-2xl shadow-sm space-y-5">
+        <div className="sticky top-0 z-20 p-6 space-y-5 bg-white border border-gray-100 rounded-2xl shadow-sm">
           <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
             <SlidersHorizontal className="w-4 h-4 text-[#71ABE0]" />
             <span>

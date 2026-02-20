@@ -105,13 +105,10 @@ const creators = [
 
 const EventCreators = () => {
   return (
-    <div className="min-h-screen p-4 bg-gray-50">
-      <div
-        style={{ boxShadow: "0px 1px 6px 0px rgba(0, 0, 0, 0.24)" }}
-        className="mx-auto mt-16 overflow-hidden bg-white border border-gray-200 rounded-2xl"
-      >
-        <div className="px-6 py-5 bg-[#71ABE0]">
-          <h1 className="text-3xl font-semibold text-white md:text-5xl">
+    <div className="p-4 bg-gray-50">
+      <div className="mx-auto bg-white border rounded-2xl border-slate-100 shadow-sm">
+        <div className="sticky top-0 z-10 px-6 py-4 bg-[#71ABE0]">
+          <h1 className="text-2xl font-semibold text-white">
             Event Creators
           </h1>
         </div>
@@ -151,7 +148,7 @@ const EventCreators = () => {
 
                   return (
                     <tr key={creator.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-4 text-base text-gray-800">
+                      <td className="px-3 py-4 text-sm text-gray-800">
                         {creator.id}
                       </td>
                       <td className="px-3 py-4">
@@ -161,18 +158,18 @@ const EventCreators = () => {
                             alt={creator.name}
                             className="object-cover w-10 h-10 rounded-full"
                           />
-                          <span className="text-base text-gray-800">
+                          <span className="text-sm text-gray-800">
                             {creator.name}
                           </span>
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-base text-gray-800">
+                      <td className="px-3 py-4 text-sm text-gray-800">
                         {String(creator.totalEvents).padStart(2, "0")}
                       </td>
-                      <td className="px-3 py-4 text-base text-gray-800">
+                      <td className="px-3 py-4 text-sm text-gray-800">
                         {creator.ticketSold}
                       </td>
-                      <td className="px-3 py-4 text-base text-gray-800">
+                      <td className="px-3 py-4 text-sm text-gray-800">
                         {creator.earnings}
                       </td>
                       <td className="px-3 py-4">
@@ -203,10 +200,10 @@ const EventCreators = () => {
           </div>
 
           <div className="flex flex-col items-start justify-between gap-4 px-2 py-6 md:flex-row md:items-center">
-            <div className="text-xl font-medium text-[#71ABE0]">
+            <div className="text-sm font-medium text-[#71ABE0]">
               SHOWING 1-8 OF 250
             </div>
-            <div className="flex items-center gap-4 text-lg text-gray-600">
+            <div className="flex items-center gap-4 text-sm text-gray-600">
               <button className="text-2xl leading-none text-gray-400">
                 &#8249;
               </button>

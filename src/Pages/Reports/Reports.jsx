@@ -63,15 +63,12 @@ const Reports = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50">
-      <div
-        style={{ boxShadow: "0px 1px 6px 0px rgba(0, 0, 0, 0.24)" }}
-        className="mx-auto mt-16"
-      >
+    <div className="p-6 bg-gray-50">
+      <div className="mx-auto bg-white border rounded-2xl border-slate-100 shadow-sm">
         {/* Card Container */}
-        <div className="overflow-hidden bg-white rounded-lg shadow-md">
+        <div className="bg-white">
           {/* Header */}
-          <div className="px-6 py-4 text-white bg-[#71ABE0]">
+          <div className="sticky top-0 z-10 px-6 py-4 text-white bg-[#71ABE0]">
             <h1 className="text-xl font-semibold">Reports</h1>
           </div>
 
