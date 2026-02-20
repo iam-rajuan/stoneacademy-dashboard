@@ -1,5 +1,4 @@
-const DEFAULT_API_BASE_URL =
-  "https://informal-vehicles-leadership-monitors.trycloudflare.com";
+const DEFAULT_API_BASE_URL = "http://localhost:5191";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL;
