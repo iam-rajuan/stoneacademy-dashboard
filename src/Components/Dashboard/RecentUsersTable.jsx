@@ -59,17 +59,20 @@ const RecentUsersTable = () => {
   }
 
   return (
-    <div className="p-4 bg-gray-50">
-      <div style={{ boxShadow: "0px 1px 6px 0px rgba(0, 0, 0, 0.24)" }} >
+    <div className="w-full mt-4">
+      <div className="flex flex-col h-full p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
         {/*============================= Header============================= */}
-        <div className="px-6 py-4 mb-6 rounded-tl-lg rounded-tr-lg">
-          <h1 className="text-2xl font-semibold">Recent Users</h1>
+        <div className="mb-6 space-y-1">
+          <p className="text-xs font-semibold tracking-[0.3em] text-slate-400 uppercase">
+            Accounts
+          </p>
+          <h1 className="text-2xl font-semibold text-slate-900">Recent Users</h1>
         </div>
 
         {/* =============================Table =============================*/}
-        <div className="bg-white rounded-lg shadow-sm">
-          <div >
-            <table className="w-full">
+        <div className="overflow-x-auto border rounded-xl border-slate-100">
+          <div>
+            <table className="w-full min-w-[680px]">
               <thead className="bg-[#71ABE0]">
                 <tr>
                   <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-white uppercase">
@@ -90,7 +93,7 @@ const RecentUsersTable = () => {
                 </tr>
               </thead>
 
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-slate-200">
                 {displayedUsers.map((user, index) => (
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">
