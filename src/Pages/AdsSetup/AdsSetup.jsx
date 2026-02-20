@@ -602,17 +602,17 @@ const AdsSetup = () => {
       </section>
       {(isCreating || editingAd) && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black bg-opacity-40"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-40"
           onClick={isCreating ? closeCreateModal : closeEditModal}
         >
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-md p-8 bg-white rounded-lg shadow-lg"
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-lg bg-white p-4 shadow-lg sm:p-6 md:p-8"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-semibold text-[#71ABE0]">
+              <h3 className="text-xl font-semibold text-[#71ABE0] sm:text-2xl">
                 {isCreating ? "Create New Ad" : "Edit Ad"}
               </h3>
               <button
@@ -777,7 +777,7 @@ const AdsSetup = () => {
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-col gap-3 pt-4 sm:flex-row">
                 <button
                   type="button"
                   onClick={isCreating ? closeCreateModal : closeEditModal}

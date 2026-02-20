@@ -6,9 +6,6 @@ import brandlogo from "../../../assets/image/stone-logo.png";
 import { isAdminAuthenticated, setAdminSession } from "../../../utils/auth";
 import { loginAdmin } from "../../../services/authApi";
 
-const FALLBACK_ADMIN_EMAIL = "admin@stoneacademy@gmail.com";
-const FALLBACK_ADMIN_PASSWORD = "admin@123";
-
 const SignIn = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,9 +26,6 @@ const SignIn = () => {
   const onFinish = async (values) => {
     setLoading(true);
     const normalizedEmail = values.email.trim().toLowerCase();
-    const isFallbackAdmin =
-      normalizedEmail === FALLBACK_ADMIN_EMAIL &&
-      values.password === FALLBACK_ADMIN_PASSWORD;
 
     try {
       const payload = await loginAdmin({
@@ -42,9 +36,19 @@ const SignIn = () => {
       const data = payload?.data || payload;
       const email =
         data?.email || data?.admin?.email || data?.user?.email || normalizedEmail;
-      const accessToken = data?.accessToken || data?.token || payload?.token;
-      const refreshToken = data?.refreshToken || payload?.refreshToken;
+      const accessToken =
+        data?.accessToken ||
+        data?.token ||
+        data?.access_token ||
+        data?.tokens?.accessToken ||
+        payload?.token;
+      const refreshToken =
+        data?.refreshToken || data?.refresh_token || data?.tokens?.refreshToken || payload?.refreshToken;
       const profile = data?.admin || data?.user || null;
+
+      if (!accessToken) {
+        throw new Error("Login response did not include access token.");
+      }
 
       setAdminSession({
         email,
@@ -56,16 +60,6 @@ const SignIn = () => {
       message.success(payload?.message || "Login successful");
       navigate(redirectPath, { replace: true });
     } catch (error) {
-      if (isFallbackAdmin) {
-        setAdminSession({
-          email: normalizedEmail,
-          profile: { role: "admin", name: "Admin" },
-        });
-        message.success("Login successful");
-        navigate(redirectPath, { replace: true });
-        return;
-      }
-
       message.error(error.message || "Unable to login. Please try again.");
     } finally {
       setLoading(false);

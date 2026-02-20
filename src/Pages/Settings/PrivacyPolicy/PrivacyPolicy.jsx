@@ -1,26 +1,44 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import JoditEditor from "jodit-react";
 import { FaArrowLeftLong } from "react-icons/fa6";
 import { Link } from "react-router-dom";
+import { getPrivacyPolicy, upsertPrivacyPolicy } from "../../../services/cmsApi";
 
 const PrivacyPolicy = () => {
   const editor = useRef(null);
   const [content, setContent] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const config = {
-    readonly: false,
-    placeholder: "Start typing...",
-    height: 600,
-    iframe: false,
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const payload = await getPrivacyPolicy();
+        if (!mounted) return;
+        const data = payload?.data || payload;
+        setContent(data?.content || data?.description || "");
+      } catch {
+        if (mounted) setContent("");
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      await upsertPrivacyPolicy({ content });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="min-h-screen ">
-      <Link
-        to={"/"}
-        className="flex items-center mt-16 mb-6 text-white gap-x-3"
-      >
+      <Link to="/" className="flex items-center mt-16 mb-6 text-white gap-x-3">
         <FaArrowLeftLong size={20} />
         <h1 className="text-2xl font-semibold "> Privacy Policy</h1>
       </Link>
@@ -28,14 +46,14 @@ const PrivacyPolicy = () => {
         <JoditEditor
           ref={editor}
           value={content}
-          config={config}
+          config={{ readonly: false, placeholder: "Start typing...", height: 600, iframe: false }}
           tabIndex={1}
           onBlur={(newContent) => setContent(newContent)}
           onChange={() => {}}
         />
         <div className="text-center">
-          <button className="bg-[#319FCA] p-2 text-white  mt-2 rounded-lg">
-            Save Change
+          <button onClick={handleSave} disabled={saving} className="bg-[#319FCA] p-2 text-white mt-2 rounded-lg disabled:opacity-60">
+            {saving ? "Saving..." : "Save Change"}
           </button>
         </div>
       </div>
