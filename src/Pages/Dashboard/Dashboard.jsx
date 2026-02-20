@@ -12,6 +12,14 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(numeric) ? numeric : fallback;
 };
 
+const firstFinite = (...values) => {
+  for (const value of values) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  return 0;
+};
+
 const extractItems = (payload) => {
   const data = payload?.data ?? payload;
   const visited = new Set();
@@ -130,14 +138,20 @@ const Dashboard = () => {
     };
   }, [selectedYear]);
 
-  const totalUsers =
-    toNumber(overview?.totalUsers) ||
-    toNumber(overview?.usersCount) ||
-    toNumber(overview?.users);
-  const totalRevenue =
-    toNumber(overview?.totalRevenue) ||
-    toNumber(overview?.revenue) ||
-    toNumber(overview?.earnings);
+  const totalUsers = firstFinite(
+    overview?.totalUsers,
+    overview?.usersCount,
+    overview?.users
+  );
+  const totalRevenue = firstFinite(
+    overview?.totalRevenue,
+    overview?.revenueBreakdown?.totalRevenue,
+    overview?.eventPlatformFeeRevenue + overview?.subscriptionRevenue,
+    overview?.payments?.platformFee + overview?.subscriptionRevenue,
+    overview?.payments?.platformFee,
+    overview?.revenue,
+    overview?.earnings
+  );
   const usersGrowth = overview?.usersGrowth ?? overview?.userGrowthPercent;
   const revenueGrowth = overview?.revenueGrowth ?? overview?.revenueGrowthPercent;
 

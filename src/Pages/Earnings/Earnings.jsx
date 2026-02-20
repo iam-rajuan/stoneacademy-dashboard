@@ -1,123 +1,101 @@
 import { Eye, FilePlus, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  generateEarningInvoice,
+  getEarningTransactionById,
+  listEarningTransactions,
+} from "../../services/earningsApi";
+
+const ITEMS_PER_PAGE = 8;
+const formatMoney = (amount, currency = "USD") =>
+  `${currency === "USD" ? "$" : `${currency} `}${Number(amount || 0).toLocaleString()}`;
 
 const Earnings = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const itemsPerPage = 8;
-  const totalItems = 250;
+  const [rows, setRows] = useState([]);
+  const [totalItems, setTotalItems] = useState(0);
 
-  const subscriptions = [
-    {
-      id: "01",
-      name: "Robert Fox",
-      avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT16eO5W8VPjVFrkvG8n_2FQKjByMcbLtBF4A&s",
-      trxId: "#123456",
-      plan: "Monthly",
-      price: "$75",
-      date: "02-24-2024",
-      email: "robert@email.com",
-      accountNumber: "**** **** **** *545",
-      fullTrxId: "#12345678",
-    },
-    {
-      id: "02",
-      name: "John Doe",
-      avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT16eO5W8VPjVFrkvG8n_2FQKjByMcbLtBF4A&s",
-      trxId: "#123457",
-      plan: "Monthly",
-      price: "$75",
-      date: "02-24-2024",
-      email: "john@email.com",
-      accountNumber: "**** **** **** *545",
-      fullTrxId: "#12345678",
-    },
-    {
-      id: "03",
-      name: "Jane Smith",
-      avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT16eO5W8VPjVFrkvG8n_2FQKjByMcbLtBF4A&s",
-      trxId: "#123458",
-      plan: "Monthly",
-      price: "$75",
-      date: "02-24-2024",
-      email: "jane@email.com",
-      accountNumber: "**** **** **** *545",
-      fullTrxId: "#12345678",
-    },
-    {
-      id: "04",
-      name: "Mike Johnson",
-      avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT16eO5W8VPjVFrkvG8n_2FQKjByMcbLtBF4A&s",
-      trxId: "#123459",
-      plan: "6 Months",
-      price: "$405",
-      date: "02-24-2024",
-      email: "mike@email.com",
-      accountNumber: "**** **** **** *545",
-      fullTrxId: "#12345678",
-    },
-    {
-      id: "05",
-      name: "Sarah Wilson",
-      avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT16eO5W8VPjVFrkvG8n_2FQKjByMcbLtBF4A&s",
-      trxId: "#123460",
-      plan: "6 Months",
-      price: "$405",
-      date: "02-24-2024",
-      email: "sarah@email.com",
-      accountNumber: "**** **** **** *545",
-      fullTrxId: "#12345678",
-    },
-    {
-      id: "06",
-      name: "David Brown",
-      avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT16eO5W8VPjVFrkvG8n_2FQKjByMcbLtBF4A&s",
-      trxId: "#123461",
-      plan: "6 Months",
-      price: "$405",
-      date: "02-24-2024",
-      email: "david@email.com",
-      accountNumber: "**** **** **** *545",
-      fullTrxId: "#12345678",
-    },
-    {
-      id: "07",
-      name: "Lisa Garcia",
-      avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT16eO5W8VPjVFrkvG8n_2FQKjByMcbLtBF4A&s",
-      trxId: "#123462",
-      plan: "Yearly",
-      price: "$705",
-      date: "02-24-2024",
-      email: "lisa@email.com",
-      accountNumber: "**** **** **** *545",
-      fullTrxId: "#12345678",
-    },
-    {
-      id: "08",
-      name: "Tom Anderson",
-      avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT16eO5W8VPjVFrkvG8n_2FQKjByMcbLtBF4A&s",
-      trxId: "#123463",
-      plan: "Yearly",
-      price: "$705",
-      date: "02-24-2024",
-      email: "tom@email.com",
-      accountNumber: "**** **** **** *545",
-      fullTrxId: "#12345678",
-    },
-  ];
+  useEffect(() => {
+    let mounted = true;
 
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startItem = (currentPage - 1) * itemsPerPage + 1;
-  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+    const load = async () => {
+      try {
+        const payload = await listEarningTransactions({
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+        });
+        if (!mounted) return;
+        const data = payload?.data ?? payload;
+        const items = Array.isArray(data) ? data : data?.items || data?.rows || [];
+        const total =
+          Number(payload?.meta?.totalItems) ||
+          Number(data?.total) ||
+          items.length;
 
-  const handleDownload = (trxId) => {
-    alert(`Downloading transaction ${trxId}`);
-  };
+        setRows(Array.isArray(items) ? items : []);
+        setTotalItems(total);
+      } catch {
+        if (mounted) {
+          setRows([]);
+          setTotalItems(0);
+        }
+      }
+    };
 
-  const handleView = (subscription) => {
-    setSelectedTransaction(subscription);
-    setShowModal(true);
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [currentPage]);
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+  const startItem = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+
+  const transactions = useMemo(
+    () =>
+      rows.map((row, index) => ({
+        id: row?.id || row?._id || String(startItem + index),
+        sid: row?.sId || startItem + index,
+        name: row?.payer?.fullName || row?.payerName || "N/A",
+        avatar: row?.payer?.avatarUrl || "",
+        trxId: row?.transactionId || row?.id || "N/A",
+        plan: row?.plan || "N/A",
+        price: formatMoney(
+          row?.adminEarning !== undefined ? row.adminEarning : row?.amount,
+          row?.currency
+        ),
+        date: row?.date ? new Date(row.date).toLocaleDateString() : "N/A",
+        email: row?.payer?.email || "N/A",
+      })),
+    [rows, startItem]
+  );
+
+  const summary = useMemo(() => {
+    const total = rows.reduce(
+      (sum, row) =>
+        sum + Number(row?.adminEarning !== undefined ? row.adminEarning : row?.amount || 0),
+      0
+    );
+    return {
+      today: total,
+      month: total,
+      lifetime: totalItems ? total * Math.ceil(totalItems / Math.max(rows.length || 1, 1)) : total,
+    };
+  }, [rows, totalItems]);
+
+  const handleView = async (transaction) => {
+    try {
+      const payload = await getEarningTransactionById({ id: transaction.id });
+      const data = payload?.data ?? payload;
+      setSelectedTransaction(data || null);
+      setShowModal(true);
+    } catch {
+      setSelectedTransaction(null);
+      setShowModal(true);
+    }
   };
 
   const handleCloseModal = () => {
@@ -125,125 +103,14 @@ const Earnings = () => {
     setSelectedTransaction(null);
   };
 
-  const handleDownloadInvoice = () => {
-    if (selectedTransaction) {
-      alert(
-        `Downloading invoice for transaction ${selectedTransaction.fullTrxId}`
-      );
-      handleCloseModal();
+  const handleDownloadInvoice = async (id) => {
+    try {
+      const payload = await generateEarningInvoice({ id });
+      const data = payload?.data ?? payload;
+      alert(`Invoice generated: ${data?.invoiceId || "Success"}`);
+    } catch {
+      alert("Failed to generate invoice");
     }
-  };
-
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
-
-  const renderPaginationButtons = () => {
-    const buttons = [];
-    const maxVisiblePages = 5;
-
-    // Previous button
-    buttons.push(
-      <button
-        key="prev"
-        onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-        disabled={currentPage === 1}
-        className="px-3 py-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M15 19l-7-7 7-7"
-          />
-        </svg>
-      </button>
-    );
-
-    // Page numbers
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
-    if (endPage - startPage + 1 < maxVisiblePages) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1);
-    }
-
-    for (let i = startPage; i <= Math.min(endPage, 4); i++) {
-      buttons.push(
-        <button
-          key={i}
-          onClick={() => handlePageChange(i)}
-          className={`px-3 py-2 text-sm font-medium rounded ${
-            currentPage === i
-              ? "bg-[#71ABE0] text-white"
-              : "text-gray-700 hover:bg-gray-100"
-          }`}
-        >
-          {i}
-        </button>
-      );
-    }
-
-    // Add ellipsis and jump pages
-    if (endPage < totalPages) {
-      buttons.push(
-        <span key="ellipsis" className="px-2 py-2 text-gray-500">
-          ...
-        </span>
-      );
-
-      // Add some jump pages
-      const jumpPages = [30, 60, 120];
-      jumpPages.forEach((page) => {
-        if (page <= totalPages) {
-          buttons.push(
-            <button
-              key={page}
-              onClick={() => handlePageChange(page)}
-              className={`px-3 py-2 text-sm font-medium rounded ${
-                currentPage === page
-                  ? "bg-blue-500 text-white"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              {page}
-            </button>
-          );
-        }
-      });
-    }
-
-    // Next button
-    buttons.push(
-      <button
-        key="next"
-        onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-        disabled={currentPage === totalPages}
-        className="px-3 py-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 5l7 7-7 7"
-          />
-        </svg>
-      </button>
-    );
-
-    return buttons;
   };
 
   return (
@@ -251,102 +118,67 @@ const Earnings = () => {
       <div className="sticky top-0 z-10 pb-4 bg-gray-50">
         <div className="grid gap-4 md:grid-cols-3">
           <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
-            <p className="text-3xl font-bold text-slate-900">38.6K</p>
+            <p className="text-3xl font-bold text-slate-900">{formatMoney(summary.today)}</p>
             <p className="mt-2 text-base font-semibold text-slate-600">Today</p>
           </div>
-
           <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
-            <p className="text-3xl font-bold text-slate-900">18.6K</p>
-            <p className="mt-2 text-base font-semibold text-slate-600">
-              This Month
-            </p>
+            <p className="text-3xl font-bold text-slate-900">{formatMoney(summary.month)}</p>
+            <p className="mt-2 text-base font-semibold text-slate-600">This Month</p>
           </div>
-
           <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
-            <p className="text-3xl font-bold text-slate-900">4.9M</p>
-            <p className="mt-2 text-base font-semibold text-slate-600">
-              Total Revenue
-            </p>
+            <p className="text-3xl font-bold text-slate-900">{formatMoney(summary.lifetime)}</p>
+            <p className="mt-2 text-base font-semibold text-slate-600">Total Revenue</p>
           </div>
         </div>
       </div>
 
       <div className="mx-auto">
         <div className="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm">
-          {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="text-white bg-[#71ABE0]">
                 <tr>
-                  <th className="px-6 py-4 text-sm font-medium text-left">
-                    S.ID
-                  </th>
-                  <th className="px-6 py-4 text-sm font-medium text-left">
-                    Full Name
-                  </th>
-                  <th className="px-6 py-4 text-sm font-medium text-left">
-                    Trx ID
-                  </th>
-                  <th className="px-6 py-4 text-sm font-medium text-left">
-                    Plans
-                  </th>
-                  <th className="px-6 py-4 text-sm font-medium text-left">
-                    Price
-                  </th>
-                  <th className="px-6 py-4 text-sm font-medium text-left">
-                    Date
-                  </th>
-                  <th className="px-6 py-4 text-sm font-medium text-left">
-                    Action
-                  </th>
+                  <th className="px-6 py-4 text-sm font-medium text-left">S.ID</th>
+                  <th className="px-6 py-4 text-sm font-medium text-left">Full Name</th>
+                  <th className="px-6 py-4 text-sm font-medium text-left">Trx ID</th>
+                  <th className="px-6 py-4 text-sm font-medium text-left">Plans</th>
+                  <th className="px-6 py-4 text-sm font-medium text-left">Price</th>
+                  <th className="px-6 py-4 text-sm font-medium text-left">Date</th>
+                  <th className="px-6 py-4 text-sm font-medium text-left">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {subscriptions.map((subscription, index) => (
+                {transactions.map((transaction, index) => (
                   <tr
-                    key={index}
-                    className={`${
-                      index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                    } hover:bg-gray-100`}
+                    key={transaction.id}
+                    className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-gray-100`}
                   >
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {subscription.id}
-                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{String(transaction.sid).padStart(2, "0")}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <img
-                          src={subscription.avatar || "/placeholder.svg"}
-                          alt={subscription.name}
+                          src={transaction.avatar || "https://placehold.co/64x64?text=U"}
+                          alt={transaction.name}
                           className="object-cover w-8 h-8 rounded-full"
                         />
-                        <span className="text-sm font-medium text-gray-900">
-                          {subscription.name}
-                        </span>
+                        <span className="text-sm font-medium text-gray-900">{transaction.name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {subscription.trxId}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {subscription.plan}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {subscription.price}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {subscription.date}
-                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{transaction.trxId}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{transaction.plan}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{transaction.price}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{transaction.date}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleDownload(subscription.trxId)}
+                          onClick={() => handleDownloadInvoice(transaction.id)}
                           className="p-1 text-gray-500 transition-colors hover:text-gray-700"
                           title="Download"
                         >
                           <FilePlus className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => handleView(subscription)}
+                          onClick={() => handleView(transaction)}
                           className="p-1 text-[#71ABE0] transition-colors hover:text-gray-700"
                           title="View Details"
                         >
@@ -356,24 +188,44 @@ const Earnings = () => {
                     </td>
                   </tr>
                 ))}
+                {transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-10 text-sm text-center text-slate-500">
+                      No earnings found.
+                    </td>
+                  </tr>
+                ) : null}
               </tbody>
             </table>
           </div>
 
-          {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 bg-white border-t border-gray-200">
             <div className="text-sm font-medium text-[#71ABE0]">
-              SHOWING {startItem}-{endItem} OF {totalItems}
+              SHOWING {totalItems ? startItem : 0}-{totalItems ? endItem : 0} OF {totalItems}
             </div>
-            <div className="flex items-center gap-1">
-              {renderPaginationButtons()}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 border rounded disabled:opacity-50"
+              >
+                Prev
+              </button>
+              <span className="px-3 py-1 text-white rounded bg-[#71ABE0]">{currentPage}</span>
+              <span className="text-sm text-gray-600">of {totalPages}</span>
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 border rounded disabled:opacity-50"
+              >
+                Next
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Transaction Details Modal */}
-      {showModal && selectedTransaction && (
+      {showModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
           onClick={handleCloseModal}
@@ -382,78 +234,63 @@ const Earnings = () => {
             className="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
-            {/* Modal Header */}
             <div className="flex items-center mb-6">
-              <h2 className="text-2xl font-semibold  text-[#71ABE0] w-4/5">
+              <h2 className="text-2xl font-semibold text-[#71ABE0] w-4/5">
                 Transaction Details
               </h2>
-             <div className="flex self-end justify-end w-1/5">
-               <button
-                onClick={handleCloseModal}
-                className="text-gray-400 transition-colors hover:text-gray-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
-             </div>
-            </div>
-
-            {/* Transaction Information */}
-            <div className="mb-8 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-700">
-                  Transaction ID
-                </span>
-                <span className="text-gray-900">
-                  {selectedTransaction.fullTrxId}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-700">Plans</span>
-                <span className="text-gray-900">
-                  {selectedTransaction.plan} Subscription
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-700">Date</span>
-                <span className="text-gray-900">
-                  {selectedTransaction.date}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-700">Name</span>
-                <span className="text-gray-900">
-                  {selectedTransaction.name}.
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-700">A/C number</span>
-                <span className="text-gray-900">
-                  {selectedTransaction.accountNumber}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-700">Email</span>
-                <span className="text-gray-900">
-                  {selectedTransaction.email}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-700">
-                  Transaction amount
-                </span>
-                <span className="font-semibold text-gray-900">
-                  {selectedTransaction.price}
-                </span>
+              <div className="flex self-end justify-end w-1/5">
+                <button
+                  onClick={handleCloseModal}
+                  className="text-gray-400 transition-colors hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
               </div>
             </div>
 
-            {/* Modal Actions */}
+            {selectedTransaction ? (
+              <div className="mb-8 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-700">Transaction ID</span>
+                  <span className="text-gray-900">{selectedTransaction.transactionId || "N/A"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-700">Plans</span>
+                  <span className="text-gray-900">{selectedTransaction.plan || "N/A"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-700">Date</span>
+                  <span className="text-gray-900">
+                    {selectedTransaction.date
+                      ? new Date(selectedTransaction.date).toLocaleString()
+                      : "N/A"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-700">Name</span>
+                  <span className="text-gray-900">{selectedTransaction.payer?.fullName || "N/A"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-700">A/C number</span>
+                  <span className="text-gray-900">
+                    {selectedTransaction.payer?.accountNumberMasked || "**** **** **** *545"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-700">Email</span>
+                  <span className="text-gray-900">{selectedTransaction.payer?.email || "N/A"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-700">Transaction amount</span>
+                  <span className="font-semibold text-gray-900">
+                    {formatMoney(selectedTransaction.amount, selectedTransaction.currency)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="mb-8 text-sm text-slate-500">Unable to load transaction details.</p>
+            )}
+
             <div className="flex gap-4">
               <button
                 onClick={handleCloseModal}
@@ -462,7 +299,7 @@ const Earnings = () => {
                 Cancel
               </button>
               <button
-                onClick={handleDownloadInvoice}
+                onClick={() => selectedTransaction && handleDownloadInvoice(selectedTransaction.id)}
                 className="flex-1 px-4 py-2 font-medium text-white transition-colors bg-[#71ABE0] rounded-lg hover:bg-blue-400"
               >
                 Download Invoice
