@@ -257,34 +257,36 @@ export const searchSubscriptions = (body) =>
 
 export const listAdminNotifications = (query = {}) =>
   apiRequestWithFallback(["/admin/notifications"], {
-    query: { context: query.context || "full", ...toListQuery(query) },
+    query: toListQuery(query),
   });
 
 export const getUnreadNotificationCount = async () => {
-  const payload = await apiRequestWithFallback(
-    ["/admin/dashboard/notifications/preview", "/admin/notifications"],
-    { query: { context: "preview", page: 1, pageSize: 100 } }
-  );
-  const data = payload?.data || payload;
-  const items =
-    data?.notifications || data?.items || data?.rows || data?.preview || [];
-  if (!Array.isArray(items)) {
-    return { data: { count: Number(data?.count || data?.unreadCount || 0) } };
+  try {
+    const payload = await apiRequestWithFallback(["/admin/notifications/unread-count"]);
+    const data = payload?.data || payload;
+    return { data: { count: Number(data?.count || 0) } };
+  } catch {
+    const payload = await apiRequestWithFallback(["/admin/notifications"], {
+      query: { page: 1, limit: 100 },
+    });
+    const data = payload?.data || payload;
+    const items = Array.isArray(data) ? data : data?.items || data?.rows || [];
+    const unread = Array.isArray(items)
+      ? items.filter((item) => !(item?.isRead || item?.read)).length
+      : 0;
+    return { data: { count: unread } };
   }
-  const unread = items.filter((item) => !(item?.isRead || item?.read)).length;
-  return { data: { count: unread } };
 };
 
 export const markNotificationRead = ({ id }) =>
-  apiRequest("/admin/notifications/read", {
-    method: "POST",
-    body: { ids: [id] },
-  });
+  apiRequestWithFallback(
+    [createPath("/admin/notifications/:id/read", { id })],
+    { method: "PATCH" }
+  );
 
 export const markAllNotificationsRead = () =>
-  apiRequest("/admin/notifications/read", {
-    method: "POST",
-    body: { all: true },
+  apiRequestWithFallback(["/admin/notifications/read-all"], {
+    method: "PATCH",
   });
 
 export const getSettingsProfile = () =>

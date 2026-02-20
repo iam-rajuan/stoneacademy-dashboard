@@ -1,15 +1,34 @@
 import { apiRequest } from "./httpClient";
 
-const toListQuery = (query = {}) => ({
-  ...query,
-  pageSize: query.pageSize ?? query.limit,
-});
+const getThreadIdOrThrow = (threadId) => {
+  const value = String(threadId || "").trim();
+  if (!value) {
+    throw new Error("Missing thread id.");
+  }
+  return encodeURIComponent(value);
+};
 
-export const listConversations = (query = {}) =>
-  apiRequest("/admin/chat/conversations", { query: toListQuery(query) });
+export const listThreads = () => apiRequest("/chat/threads");
 
-export const listMessages = (query = {}) =>
-  apiRequest("/admin/chat/messages", { query: toListQuery(query) });
+export const ensureAdminThread = () =>
+  apiRequest("/chat/threads/admin", { method: "POST" });
 
-export const sendMessage = (body) =>
-  apiRequest("/admin/chat/messages", { method: "POST", body });
+export const listThreadMessages = ({ threadId }) =>
+  apiRequest(`/chat/threads/${getThreadIdOrThrow(threadId)}/messages`);
+
+export const sendThreadMessage = ({ threadId, body }) =>
+  apiRequest(`/chat/threads/${getThreadIdOrThrow(threadId)}/messages`, {
+    method: "POST",
+    body,
+  });
+
+export const markThreadSeen = ({ threadId }) =>
+  apiRequest(`/chat/threads/${getThreadIdOrThrow(threadId)}/seen`, {
+    method: "POST",
+  });
+
+// Backward compatible names in case any old imports still exist.
+export const listConversations = listThreads;
+export const listMessages = ({ threadId }) => listThreadMessages({ threadId });
+export const sendMessage = ({ threadId, body }) =>
+  sendThreadMessage({ threadId, body });

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { Bell } from "lucide-react";
 import {
@@ -11,6 +12,7 @@ import {
 const PAGE_SIZE = 10;
 
 const Notifications = () => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -46,6 +48,7 @@ const Notifications = () => {
         setNotifications(Array.isArray(items) ? items : []);
         setTotal(totalCount);
         setUnreadCount(unread);
+        window.dispatchEvent(new CustomEvent("admin-notifications-updated"));
       } catch {
         if (mounted) {
           setNotifications([]);
@@ -77,17 +80,27 @@ const Notifications = () => {
   );
 
   const markAsRead = async (id) => {
-    await markNotificationRead({ id });
-    setNotifications((prev) =>
-      prev.map((item) => ((item.id || item._id) === id ? { ...item, isRead: true, read: true } : item))
-    );
-    setUnreadCount((prev) => Math.max(0, prev - 1));
+    try {
+      await markNotificationRead({ id });
+      setNotifications((prev) =>
+        prev.map((item) => ((item.id || item._id) === id ? { ...item, isRead: true, read: true } : item))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+      window.dispatchEvent(new CustomEvent("admin-notifications-updated"));
+    } catch {
+      // ignore failures and keep current state
+    }
   };
 
   const handleMarkAllRead = async () => {
-    await markAllNotificationsRead();
-    setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true, read: true })));
-    setUnreadCount(0);
+    try {
+      await markAllNotificationsRead();
+      setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true, read: true })));
+      setUnreadCount(0);
+      window.dispatchEvent(new CustomEvent("admin-notifications-updated"));
+    } catch {
+      // ignore failures and keep current state
+    }
   };
 
   return (
@@ -95,7 +108,7 @@ const Notifications = () => {
       <div className="w-full bg-white shadow-lg rounded-xl">
         <div className="flex items-center justify-between gap-3 px-6 py-4 text-white bg-sky-600 rounded-t-xl">
           <div className="flex items-center gap-3">
-            <IoIosArrowBack className="cursor-pointer" onClick={() => history.back()} />
+            <IoIosArrowBack className="cursor-pointer" onClick={() => navigate(-1)} />
             <h2 className="text-lg font-semibold">All Notifications</h2>
             <span className="text-xs bg-white/20 px-2 py-1 rounded">Unread: {unreadCount}</span>
           </div>
