@@ -1,66 +1,61 @@
-const DEFAULT_API_BASE_URL = "http://localhost:5191";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL;
-
-const buildApiUrl = (path) => {
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `${API_BASE_URL.replace(/\/+$/, "")}${normalizedPath}`;
-};
-
-const parseResponse = async (response) => {
-  const contentType = response.headers.get("content-type") || "";
-
-  if (contentType.includes("application/json")) {
-    return response.json();
-  }
-
-  const text = await response.text();
-  return text ? { message: text } : {};
-};
-
-const extractApiErrorMessage = (payload) => {
-  if (Array.isArray(payload?.errors) && payload.errors.length > 0) {
-    return payload.errors[0]?.message;
-  }
-
-  return payload?.message || payload?.error;
-};
+import {
+  apiRequest,
+  apiRequestWithFallback,
+  extractApiErrorMessage,
+} from "./httpClient";
 
 export const loginAdmin = async ({ email, password }) => {
   const endpointCandidates = [
+    "/admin/login",
     "/auth/admin/login",
     "/api/v1/auth/admin/login",
     "/api/v1/auth/login",
     "/auth/login",
   ];
+  const bodyCandidates = [
+    { email, password, deviceId: "admin-console-web" },
+    { email, password },
+    { identifier: email, password },
+    { username: email, password },
+  ];
 
   let lastErrorMessage = "Login failed. Please try again.";
 
   for (const endpoint of endpointCandidates) {
-    const response = await fetch(buildApiUrl(endpoint), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    });
+    for (const body of bodyCandidates) {
+      try {
+        return await apiRequest(endpoint, {
+          method: "POST",
+          auth: false,
+          body,
+        });
+      } catch (error) {
+        const payloadMessage = extractApiErrorMessage(error?.payload);
+        if (payloadMessage) lastErrorMessage = payloadMessage;
 
-    const payload = await parseResponse(response);
-
-    if (response.ok) {
-      return payload;
-    }
-
-    const errorMessage = extractApiErrorMessage(payload);
-    if (errorMessage) {
-      lastErrorMessage = errorMessage;
-    }
-
-    if (response.status !== 404) {
-      throw new Error(lastErrorMessage);
+        if (error?.status !== 404 && error?.status !== 400) {
+          throw error;
+        }
+      }
     }
   }
 
   throw new Error(lastErrorMessage);
 };
+
+export const changeAdminPassword = ({ currentPassword, newPassword }) => {
+  return apiRequestWithFallback(["/admin/password", "/auth/admin/change-password"], {
+    method: "PUT",
+    body: { currentPassword, newPassword },
+  });
+};
+
+export const logoutAdmin = () =>
+  apiRequestWithFallback(["/admin/logout", "/auth/admin/logout"], {
+    method: "POST",
+  });
+
+export const logoutAdminAllDevices = () =>
+  apiRequestWithFallback(["/admin/logout-all", "/auth/admin/logout-all"], {
+    method: "POST",
+  });
