@@ -1,151 +1,169 @@
-import React, { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Trash2, Edit } from "lucide-react";
+import {
+  createCategory,
+  deleteCategory,
+  listCategories,
+  updateCategory,
+} from "../../services/categoriesApi";
+
+const ITEMS_PER_PAGE = 8;
+
+const toNumber = (value, fallback = 0) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+const normalizeListPayload = (payload) => {
+  const rows = Array.isArray(payload?.data) ? payload.data : [];
+  const meta = payload?.meta || {};
+
+  const totalItems = toNumber(meta?.totalItems, rows.length);
+  const currentPage = toNumber(meta?.page ?? meta?.currentPage, 1);
+  const totalPages = Math.max(
+    1,
+    toNumber(meta?.totalPages ?? meta?.pageCount, Math.ceil(totalItems / ITEMS_PER_PAGE))
+  );
+
+  return {
+    rows,
+    totalItems,
+    currentPage,
+    totalPages,
+  };
+};
 
 const Categories = () => {
-  const [categories, setCategories] = useState([
-    { id: "01", name: "Yoga" },
-    { id: "02", name: "Morning Work" },
-    { id: "03", name: "Walking" },
-  ]);
-
+  const [categories, setCategories] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalType, setModalType] = useState("add"); 
+  const [modalType, setModalType] = useState("add");
   const [currentCategory, setCurrentCategory] = useState({ id: "", name: "" });
-  const [editIndex, setEditIndex] = useState(null);
-  const [deletingCategoryIndex, setDeletingCategoryIndex] = useState(null); 
+  const [deletingCategory, setDeletingCategory] = useState(null);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  const itemsPerPage = 8;
-  const totalItems = 250;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startItem = (currentPage - 1) * itemsPerPage + 1;
-  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+  const loadCategories = async (page = currentPage) => {
+    try {
+      setLoading(true);
+      const payload = await listCategories({
+        page,
+        limit: ITEMS_PER_PAGE,
+      });
+      const normalized = normalizeListPayload(payload);
+      setCategories(
+        normalized.rows.map((row, index) => ({
+          id: row?.id || row?._id || "",
+          serialId:
+            row?.serialId
+            || String((normalized.currentPage - 1) * ITEMS_PER_PAGE + index + 1).padStart(2, "0"),
+          name: row?.categoryName || row?.name || "",
+          isActive: row?.isActive ?? true,
+        }))
+      );
+      setTotalItems(normalized.totalItems);
+      setTotalPages(normalized.totalPages);
+      setCurrentPage(normalized.currentPage);
+    } catch {
+      setCategories([]);
+      setTotalItems(0);
+      setTotalPages(1);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // ====================Add/Edit Modal====================
+  useEffect(() => {
+    loadCategories(currentPage);
+  }, [currentPage]);
+
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+
   const handleAddCategory = () => {
     setModalType("add");
     setCurrentCategory({ id: "", name: "" });
     setIsModalOpen(true);
   };
 
-  const handleEdit = (index) => {
+  const handleEdit = (category) => {
     setModalType("edit");
-    setEditIndex(index);
-    setCurrentCategory({ ...categories[index] });
+    setCurrentCategory({ id: category.id, name: category.name });
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
-    if (modalType === "add") {
-      const newCategory = {
-        id: (categories.length + 1).toString().padStart(2, "0"),
-        name: currentCategory.name,
-      };
-      setCategories([...categories, newCategory]);
-    } else if (modalType === "edit") {
-      const updatedCategories = [...categories];
-      updatedCategories[editIndex].name = currentCategory.name;
-      setCategories(updatedCategories);
+  const handleSave = async () => {
+    const name = String(currentCategory.name || "").trim();
+    if (!name) {
+      alert("Category name is required");
+      return;
     }
-    setIsModalOpen(false);
+
+    try {
+      setSaving(true);
+      if (modalType === "add") {
+        await createCategory({ categoryName: name, isActive: true });
+      } else {
+        await updateCategory({
+          id: currentCategory.id,
+          body: { categoryName: name },
+        });
+      }
+      setIsModalOpen(false);
+      setCurrentCategory({ id: "", name: "" });
+      await loadCategories(currentPage);
+    } catch (error) {
+      alert(error?.message || "Failed to save category");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // ===============================Open delete confirmation===============================
-  const handleDelete = (index) => {
-    setDeletingCategoryIndex(index);
+  const handleDelete = (category) => {
+    setDeletingCategory(category);
   };
 
-  // ===============================Confirm delete===============================
-  const handleConfirmDelete = () => {
-    setCategories(categories.filter((_, i) => i !== deletingCategoryIndex));
-    setDeletingCategoryIndex(null);
+  const handleConfirmDelete = async () => {
+    if (!deletingCategory?.id) return;
+    try {
+      setDeleting(true);
+      await deleteCategory({ id: deletingCategory.id });
+      setDeletingCategory(null);
+
+      const isLastItemOnPage = categories.length === 1 && currentPage > 1;
+      const nextPage = isLastItemOnPage ? currentPage - 1 : currentPage;
+      await loadCategories(nextPage);
+    } catch (error) {
+      alert(error?.message || "Failed to delete category");
+    } finally {
+      setDeleting(false);
+    }
   };
 
-  const closeDeleteModal = () => setDeletingCategoryIndex(null);
+  const closeDeleteModal = () => setDeletingCategory(null);
 
-  // ===============================Pagination like Subscriptions===============================
-  const renderPaginationButtons = () => {
-    const buttons = [];
+  const visiblePages = useMemo(() => {
     const maxVisiblePages = 5;
-
-    buttons.push(
-      <button
-        key="prev"
-        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-        disabled={currentPage === 1}
-        className="px-3 py-2 text-gray-500 hover:text-[#71ABE0] disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        &lt;
-      </button>
-    );
-
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
     }
 
-    for (let i = startPage; i <= endPage; i++) {
-      buttons.push(
-        <button
-          key={i}
-          onClick={() => setCurrentPage(i)}
-          className={`px-3 py-2 text-sm font-medium rounded ${
-            currentPage === i
-              ? "bg-blue-500 text-white"
-              : "text-blue-500 hover:bg-gray-100"
-          }`}
-        >
-          {i}
-        </button>
-      );
-    }
-
-    if (endPage < totalPages) {
-      buttons.push(
-        <span key="ellipsis" className="px-2 py-2 text-gray-500">
-          ...
-        </span>
-      );
-
-      [30, 60, 120].forEach((page) => {
-        if (page <= totalPages) {
-          buttons.push(
-            <button
-              key={page}
-              onClick={() => setCurrentPage(page)}
-              className={`px-3 py-2 text-sm font-medium rounded ${
-                currentPage === page
-                  ? "bg-blue-500 text-white"
-                  : "text-blue-500 hover:bg-gray-100"
-              }`}
-            >
-              {page}
-            </button>
-          );
-        }
-      });
-    }
-
-    buttons.push(
-      <button
-        key="next"
-        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-        disabled={currentPage === totalPages}
-        className="px-3 py-2 text-gray-500 hover:text-[#71ABE0] disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        &gt;
-      </button>
+    return Array.from(
+      { length: Math.max(0, endPage - startPage + 1) },
+      (_, index) => startPage + index
     );
-
-    return buttons;
-  };
+  }, [currentPage, totalPages]);
 
   return (
     <div className="w-full p-6 bg-gray-50">
       <div className="overflow-hidden bg-white border rounded-2xl border-slate-100 shadow-sm">
-        {/*=================================== Header ===================================*/}
         <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-[#71ABE0] rounded-t-2xl">
           <h1 className="text-2xl font-semibold text-white">Categories</h1>
           <button
@@ -156,7 +174,6 @@ const Categories = () => {
           </button>
         </div>
 
-        {/*=================================== Table=================================== */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -173,45 +190,85 @@ const Categories = () => {
               </tr>
             </thead>
             <tbody>
-              {categories.map((category, index) => (
-                <tr
-                  key={index}
-                  className="transition-colors border-b border-gray-200 hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4 text-sm text-gray-700">{category.id}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{category.name}</td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleDelete(index)}
-                        className="p-1 text-red-500 transition-colors rounded hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleEdit(index)}
-                        className="p-1 text-gray-600 transition-colors rounded hover:text-gray-800 hover:bg-gray-100"
-                      >
-                        <Edit size={18} />
-                      </button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td className="px-6 py-8 text-sm text-center text-gray-500" colSpan={3}>
+                    Loading categories...
                   </td>
                 </tr>
-              ))}
+              ) : categories.length === 0 ? (
+                <tr>
+                  <td className="px-6 py-8 text-sm text-center text-gray-500" colSpan={3}>
+                    No categories found.
+                  </td>
+                </tr>
+              ) : (
+                categories.map((category) => (
+                  <tr
+                    key={category.id}
+                    className="transition-colors border-b border-gray-200 hover:bg-gray-50"
+                  >
+                    <td className="px-6 py-4 text-sm text-gray-700">{category.serialId}</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">{category.name}</td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleDelete(category)}
+                          className="p-1 text-red-500 transition-colors rounded hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(category)}
+                          className="p-1 text-gray-600 transition-colors rounded hover:text-gray-800 hover:bg-gray-100"
+                        >
+                          <Edit size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
-        {/*===================================== Footer===================================== */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
           <div className="text-sm text-[#71ABE0]">
             SHOWING {startItem}-{endItem} OF {totalItems}
           </div>
-          <div className="flex items-center gap-1">{renderPaginationButtons()}</div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-2 text-gray-500 hover:text-[#71ABE0] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              &lt;
+            </button>
+            {visiblePages.map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`px-3 py-2 text-sm font-medium rounded ${
+                  currentPage === page
+                    ? "bg-blue-500 text-white"
+                    : "text-blue-500 hover:bg-gray-100"
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 text-gray-500 hover:text-[#71ABE0] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              &gt;
+            </button>
+          </div>
         </div>
       </div>
 
-      {/*===================================== Add/Edit Modal===================================== */}
       {isModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
@@ -230,7 +287,7 @@ const Categories = () => {
               placeholder="Category Name"
               value={currentCategory.name}
               onChange={(e) =>
-                setCurrentCategory({ ...currentCategory, name: e.target.value })
+                setCurrentCategory((prev) => ({ ...prev, name: e.target.value }))
               }
             />
             <div className="flex justify-center gap-4">
@@ -242,17 +299,17 @@ const Categories = () => {
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 text-white bg-[#71ABE0] rounded hover:bg-blue-400"
+                disabled={saving}
+                className="px-4 py-2 text-white bg-[#71ABE0] rounded hover:bg-blue-400 disabled:opacity-60"
               >
-                Save
+                {saving ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/*============================ Delete Confirmation Modal============================ */}
-      {deletingCategoryIndex !== null && (
+      {deletingCategory && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
           onClick={closeDeleteModal}
@@ -273,9 +330,10 @@ const Categories = () => {
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 text-sm text-white transition-colors bg-red-600 rounded hover:bg-red-700"
+                disabled={deleting}
+                className="px-4 py-2 text-sm text-white transition-colors bg-red-600 rounded hover:bg-red-700 disabled:opacity-60"
               >
-                Delete
+                {deleting ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>
