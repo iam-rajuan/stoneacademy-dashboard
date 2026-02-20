@@ -185,6 +185,9 @@ export const updateUserStatus = ({ id, status }) => {
 export const listActivities = (query = {}) =>
   apiRequestWithFallback(["/admin/activities"], { query: toListQuery(query) });
 
+export const listEvents = (query = {}) =>
+  apiRequestWithFallback(["/admin/events"], { query: toListQuery(query) });
+
 export const getActivityById = ({ id }) =>
   apiRequest(createPath("/admin/activities/:id", { id }));
 
@@ -220,6 +223,15 @@ export const updateActivityStatus = ({ id, status, body = {} }) => {
     }
   );
 };
+
+export const updateEventStatus = ({ id, status, body = {} }) =>
+  apiRequestWithFallback(
+    [createPath("/admin/events/:id/status", { id })],
+    {
+      method: "PATCH",
+      body: { status, ...body },
+    }
+  );
 
 export const listSubscriptions = (query = {}) =>
   apiRequestWithFallback(["/admin/subscriptions"], { query: toListQuery(query) });

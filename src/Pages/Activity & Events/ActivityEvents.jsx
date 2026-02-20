@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Eye,
@@ -13,71 +13,140 @@ import {
   Check,
   Trash2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import {
+  listActivities,
+  listEvents,
+  updateActivityStatus,
+  updateEventStatus,
+} from "../../services/adminApi";
 
-const activityTitles = ["Yoga", "Morning Walk", "Walking", "Running", "Cycling", "Meditation"];
-const activityTypes = ["Active", "Event"];
-const hosts = [
-  "John Carter",
-  "Sophia Adams",
-  "Liam Wilson",
-  "Emma Johnson",
-  "Noah Walker",
-  "Olivia Brown",
-  "Mason Davis",
-  "Ava Martinez",
-];
-const statusTypes = ["Ongoing", "Completed", "Upcoming"];
+const ITEMS_PER_PAGE = 8;
+const PLACEHOLDER_AVATAR = "https://via.placeholder.com/80x80.png?text=U";
+const PLACEHOLDER_IMAGE = "https://via.placeholder.com/320x180.png?text=Activity";
+
+const formatDateTime = (value) => {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "N/A";
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
+
+const normalizeStatusLabel = (item) => {
+  const raw = String(item.status || "").toLowerCase();
+  if (raw === "cancelled" || raw === "canceled") return "Cancelled";
+  if (raw === "completed") return "Completed";
+
+  const now = Date.now();
+  const startAt = item.startAt ? new Date(item.startAt).getTime() : null;
+  const endAt = item.endAt ? new Date(item.endAt).getTime() : null;
+
+  if (startAt && startAt > now) return "Upcoming";
+  if (endAt && endAt <= now) return "Completed";
+  return "Ongoing";
+};
 
 const ActivityEvents = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const events = useMemo(
-    () =>
-      Array.from({ length: 20 }, (_, i) => {
-        const title = activityTitles[Math.floor(Math.random() * activityTitles.length)];
-        const type = activityTypes[Math.floor(Math.random() * activityTypes.length)];
-        const host = hosts[Math.floor(Math.random() * hosts.length)];
-        const status = statusTypes[Math.floor(Math.random() * statusTypes.length)];
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [rows, setRows] = useState([]);
 
-        return {
-          id: i + 1,
-          title,
-          type,
-          host,
-          status,
-          image: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?fm=jpg&q=60&w=3000",
-        };
-      }),
-    []
-  );
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  const usersPerPage = 8;
-  const totalPages = Math.ceil(events.length / usersPerPage);
+  useEffect(() => {
+    let mounted = true;
 
-  const startIndex = (currentPage - 1) * usersPerPage;
-  const currentUsers = events.slice(startIndex, startIndex + usersPerPage);
+    const load = async () => {
+      try {
+        setLoading(true);
+        const [activitiesPayload, eventsPayload] = await Promise.all([
+          listActivities({
+            page: 1,
+            limit: 100,
+            q: debouncedSearch || undefined,
+          }),
+          listEvents({
+            page: 1,
+            limit: 100,
+            q: debouncedSearch || undefined,
+          }),
+        ]);
 
-  const handlePageChange = (page) => setCurrentPage(page);
+        if (!mounted) return;
 
-  const handleViewUser = (user) => {
-    setSelectedUser(user);
-    setIsModalOpen(true);
-  };
+        const activities = Array.isArray(activitiesPayload?.data)
+          ? activitiesPayload.data
+          : [];
+        const events = Array.isArray(eventsPayload?.data) ? eventsPayload.data : [];
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedUser(null);
-  };
+        const normalized = [...activities, ...events]
+          .map((item) => {
+            const entityType = item.entityType === "event" ? "event" : "activity";
+            return {
+              id: item.id || item._id || "",
+              entityType,
+              title: item.title || item.name || "Untitled",
+              type: entityType === "event" ? "Event" : "Activity",
+              hostName: item.hostName || item.host?.name || "Unknown Host",
+              hostAvatarUrl:
+                item.hostAvatarUrl || item.host?.avatarUrl || PLACEHOLDER_AVATAR,
+              status: item.status || "draft",
+              statusLabel: normalizeStatusLabel(item),
+              imageUrl: item.imageUrl || PLACEHOLDER_IMAGE,
+              description: item.description || "No description available.",
+              startAt: item.startAt || null,
+              endAt: item.endAt || null,
+              location: item.location || "N/A",
+              participantLimit: item.participantLimit ?? null,
+              category: item.type || "General",
+              createdAt: item.createdAt || null,
+            };
+          })
+          .sort((a, b) => {
+            const left = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const right = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return right - left;
+          });
 
-  const renderPaginationNumbers = () => {
+        setRows(normalized);
+      } catch {
+        if (mounted) setRows([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [debouncedSearch]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentRows = rows.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const renderPaginationNumbers = useMemo(() => {
     const pages = [];
     pages.push(1);
-
     if (currentPage > 3) pages.push("...");
-
     for (
       let i = Math.max(2, currentPage - 1);
       i <= Math.min(totalPages - 1, currentPage + 1);
@@ -85,40 +154,69 @@ const ActivityEvents = () => {
     ) {
       pages.push(i);
     }
-
     if (currentPage < totalPages - 2) pages.push("...");
-    if (!pages.includes(totalPages)) pages.push(totalPages);
-
+    if (totalPages > 1 && !pages.includes(totalPages)) pages.push(totalPages);
     return pages;
+  }, [currentPage, totalPages]);
+
+  const handleView = (item) => {
+    setSelectedItem(item);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedItem(null);
+  };
+
+  const handleUpdateStatus = async (nextStatus) => {
+    if (!selectedItem?.id) return;
+    try {
+      setSaving(true);
+      if (selectedItem.entityType === "event") {
+        await updateEventStatus({ id: selectedItem.id, status: nextStatus });
+      } else {
+        await updateActivityStatus({ id: selectedItem.id, status: nextStatus });
+      }
+
+      setRows((prev) =>
+        prev.map((item) =>
+          item.id === selectedItem.id
+            ? {
+                ...item,
+                status: nextStatus,
+                statusLabel: normalizeStatusLabel({ ...item, status: nextStatus }),
+              }
+            : item
+        )
+      );
+      closeModal();
+    } catch (error) {
+      alert(error?.message || "Failed to update status");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="p-4 bg-gray-50">
       <div className="mx-auto overflow-hidden bg-white border rounded-2xl border-slate-100 shadow-sm">
-        
-        {/* Header */}
         <div className="sticky top-0 z-10 px-6 py-4 bg-[#71ABE0] rounded-t-2xl">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold text-white">Activities & Events Management</h1>
-
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Search className="absolute w-4 h-4 text-gray-400 -translate-y-1/2 left-3 top-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search Events"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-64 py-2 pl-10 pr-4 text-sm bg-white rounded-lg focus:ring-2 focus:ring-cyan-300"
-                />
-              </div>
-
-
+            <div className="relative">
+              <Search className="absolute w-4 h-4 text-gray-400 -translate-y-1/2 left-3 top-1/2" />
+              <input
+                type="text"
+                placeholder="Search Events"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-64 py-2 pl-10 pr-4 text-sm bg-white rounded-lg focus:ring-2 focus:ring-cyan-300"
+              />
             </div>
           </div>
         </div>
 
-        {/* Table */}
         <div className="bg-white">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -134,57 +232,64 @@ const ActivityEvents = () => {
               </thead>
 
               <tbody className="divide-y divide-gray-200">
-                {currentUsers.map((ev, index) => (
-                  <tr key={ev.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm">{String(startIndex + index + 1).padStart(2, "0")}</td>
-
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{ev.title}</td>
-
-                    <td className="px-6 py-4 text-sm text-gray-900">{ev.type}</td>
-
-                    {/* HOST WITH IMAGE */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <img src={ev.image} className="w-8 h-8 rounded-full" />
-                        <span className="ml-3 text-sm text-gray-900">{ev.host}</span>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 text-sm text-gray-900">{ev.status}</td>
-
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleViewUser(ev)}
-                        className="p-1 text-[#71ABE0] hover:bg-blue-50 rounded-full"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
+                {loading ? (
+                  <tr>
+                    <td className="px-6 py-10 text-sm text-center text-gray-500" colSpan={6}>
+                      Loading activities and events...
                     </td>
                   </tr>
-                ))}
+                ) : currentRows.length === 0 ? (
+                  <tr>
+                    <td className="px-6 py-10 text-sm text-center text-gray-500" colSpan={6}>
+                      No activities/events found.
+                    </td>
+                  </tr>
+                ) : (
+                  currentRows.map((row, index) => (
+                    <tr key={`${row.entityType}-${row.id}`} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm">{String(startIndex + index + 1).padStart(2, "0")}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{row.title}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{row.type}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center">
+                          <img src={row.hostAvatarUrl || PLACEHOLDER_AVATAR} className="w-8 h-8 rounded-full" />
+                          <span className="ml-3 text-sm text-gray-900">{row.hostName}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{row.statusLabel}</td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleView(row)}
+                          className="p-1 text-[#71ABE0] hover:bg-blue-50 rounded-full"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
-          {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t">
             <span className="text-sm text-gray-700">
-              SHOWING {startIndex + 1}-{Math.min(startIndex + usersPerPage, events.length)} OF {events.length}
+              SHOWING {rows.length === 0 ? 0 : startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, rows.length)} OF {rows.length}
             </span>
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
                 className="p-2 text-gray-400 disabled:opacity-50"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
-              {renderPaginationNumbers().map((page, idx) => (
+              {renderPaginationNumbers.map((page, idx) => (
                 <button
                   key={idx}
-                  onClick={() => typeof page === "number" && handlePageChange(page)}
+                  onClick={() => typeof page === "number" && setCurrentPage(page)}
                   className={`min-w-[32px] px-3 py-1 text-sm rounded-lg ${
                     page === currentPage ? "bg-[#71ABE0] text-white" : "hover:bg-gray-100"
                   }`}
@@ -194,7 +299,7 @@ const ActivityEvents = () => {
               ))}
 
               <button
-                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
                 className="p-2 text-gray-400 disabled:opacity-50"
               >
@@ -205,65 +310,53 @@ const ActivityEvents = () => {
         </div>
       </div>
 
-      {/* MODAL */}
-      {isModalOpen && selectedUser && (
+      {isModalOpen && selectedItem && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50"
-          onClick={handleCloseModal}
+          onClick={closeModal}
         >
           <div
             className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(event) => event.stopPropagation()}
           >
-
-            {/* Header */}
             <div className="sticky top-0 flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
-              <h2 className="text-2xl font-semibold text-blue-400">Manage Activity</h2>
-              <button
-                onClick={handleCloseModal}
-                className="text-gray-400 transition-colors hover:text-gray-600"
-              >
+              <h2 className="text-2xl font-semibold text-blue-400">
+                Manage {selectedItem.type}
+              </h2>
+              <button onClick={closeModal} className="text-gray-400 transition-colors hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
 
-            {/* Content */}
             <div className="p-6">
-              
-              {/* Activity Card */}
               <div className="overflow-hidden bg-white border border-gray-200 rounded-lg">
                 <div className="flex flex-col gap-4 p-5 sm:flex-row">
-
-                  {/* Image */}
                   <div className="flex-shrink-0">
                     <img
-                      src={selectedUser.image}
+                      src={selectedItem.imageUrl || PLACEHOLDER_IMAGE}
                       alt="Activity"
                       className="object-cover w-full h-32 rounded-lg sm:w-32"
                     />
                   </div>
 
-                  {/* Details */}
                   <div className="flex-1 space-y-3">
-                    <h3 className="text-xl font-semibold text-gray-900">{selectedUser.title}</h3>
+                    <h3 className="text-xl font-semibold text-gray-900">{selectedItem.title}</h3>
 
                     <div className="flex items-center gap-2">
-                      <img src={selectedUser.image} className="w-8 h-8 rounded-full" />
-                      <span className="font-medium text-gray-700">{selectedUser.host}</span>
+                      <img src={selectedItem.hostAvatarUrl || PLACEHOLDER_AVATAR} className="w-8 h-8 rounded-full" />
+                      <span className="font-medium text-gray-700">{selectedItem.hostName}</span>
                     </div>
 
                     <p className="text-sm leading-relaxed text-gray-600">
-                      This activity is auto-generated sample content for UI preview only.
-                      Replace with your API data later.
+                      {selectedItem.description || "No description available."}
                     </p>
 
                     <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2">
-
                       <div>
                         <div className="mb-1 text-xs font-medium text-gray-500">Date & Time:</div>
                         <div className="flex items-center gap-2 text-sm">
                           <Calendar size={16} className="text-gray-400" />
-                          <span className="font-medium text-gray-900">Saturday, Dec 14, 2024</span>
+                          <span className="font-medium text-gray-900">{formatDateTime(selectedItem.startAt)}</span>
                         </div>
                       </div>
 
@@ -271,7 +364,7 @@ const ActivityEvents = () => {
                         <div className="mb-1 text-xs font-medium text-gray-500">Location:</div>
                         <div className="flex items-center gap-2 text-sm">
                           <MapPin size={16} className="text-gray-400" />
-                          <span className="font-medium text-gray-900">City Park, NY</span>
+                          <span className="font-medium text-gray-900">{selectedItem.location || "N/A"}</span>
                         </div>
                       </div>
 
@@ -279,7 +372,9 @@ const ActivityEvents = () => {
                         <div className="mb-1 text-xs font-medium text-gray-500">Participants Limit:</div>
                         <div className="flex items-center gap-2 text-sm">
                           <Users size={16} className="text-gray-400" />
-                          <span className="font-medium text-gray-900">15 people</span>
+                          <span className="font-medium text-gray-900">
+                            {selectedItem.participantLimit ?? "N/A"}
+                          </span>
                         </div>
                       </div>
 
@@ -288,35 +383,39 @@ const ActivityEvents = () => {
                         <div className="flex items-center gap-2 text-sm">
                           <Tag size={16} className="text-gray-400" />
                           <span className="px-3 py-1 text-xs font-medium text-blue-600 rounded-full bg-blue-50">
-                            Fitness
+                            {selectedItem.category || "General"}
                           </span>
                         </div>
                       </div>
-
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Info Banner */}
               <div className="flex items-start gap-3 p-4 mt-6 border border-blue-200 rounded-lg bg-blue-50">
                 <Info size={20} className="text-blue-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-700">Only approved activities appear in the app.</p>
+                <p className="text-sm text-blue-700">Only approved activities/events appear in the app.</p>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex flex-col gap-3 mt-6 sm:flex-row">
-                <button className="flex items-center justify-center flex-1 gap-2 px-6 py-3 font-medium text-white transition-colors bg-blue-400 rounded-lg hover:bg-blue-500">
+                <button
+                  onClick={() => handleUpdateStatus("approved")}
+                  disabled={saving || selectedItem.status === "approved"}
+                  className="flex items-center justify-center flex-1 gap-2 px-6 py-3 font-medium text-white transition-colors bg-blue-400 rounded-lg hover:bg-blue-500 disabled:opacity-60"
+                >
                   <Check size={20} />
-                  Approve Activity
+                  {saving ? "Saving..." : `Approve ${selectedItem.type}`}
                 </button>
 
-                <button className="flex items-center justify-center flex-1 gap-2 px-6 py-3 font-medium text-white transition-colors bg-red-500 rounded-lg hover:bg-red-600">
+                <button
+                  onClick={() => handleUpdateStatus("cancelled")}
+                  disabled={saving}
+                  className="flex items-center justify-center flex-1 gap-2 px-6 py-3 font-medium text-white transition-colors bg-red-500 rounded-lg hover:bg-red-600 disabled:opacity-60"
+                >
                   <Trash2 size={20} />
-                  Delete Activity
+                  {saving ? "Saving..." : `Cancel ${selectedItem.type}`}
                 </button>
               </div>
-
             </div>
           </div>
         </div>
