@@ -32,7 +32,9 @@ const CustomTooltip = ({ active, payload }) => {
         <p className="text-xs font-semibold tracking-wide text-slate-300 uppercase">
           Monthly Users
         </p>
-        <p className="text-lg font-semibold">{payload[0].value}</p>
+        <p className="text-lg font-semibold">
+          {payload[0].value.toLocaleString()}
+        </p>
       </div>
     );
   }
@@ -40,8 +42,10 @@ const CustomTooltip = ({ active, payload }) => {
 };
 
 const UserRatioChart = () => {
-  const [selectedYear, setSelectedYear] = useState("2024");
+  const [selectedYear, setSelectedYear] = useState("2025");
   const [hoveredIndex, setHoveredIndex] = useState(null);
+  const maxUsers = Math.max(...userData.map((item) => item.users));
+  const yAxisMax = Math.ceil((maxUsers + 50) / 100) * 100;
 
   const handleMouseEnter = (_, index) => {
     setHoveredIndex(index);
@@ -72,7 +76,7 @@ const UserRatioChart = () => {
             onChange={(e) => setSelectedYear(e.target.value)}
             className="px-4 py-2 mt-1 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="2024">Year-2025</option>
+            <option value="2025">Year-2025</option>
             <option value="2024">Year-2024</option>
             <option value="2023">Year-2023</option>
             <option value="2022">Year-2022</option>
@@ -80,31 +84,35 @@ const UserRatioChart = () => {
         </div>
       </div>
 
-      <div className="h-64 mt-8">
+      <div className="h-[320px] mt-8">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={userData}
             margin={{
-              top: 20,
-              right: 30,
-              left: 20,
-              bottom: 5,
+              top: 10,
+              right: 12,
+              left: 0,
+              bottom: 0,
             }}
-            barCategoryGap="20%"
+            barCategoryGap="12%"
+            barGap={4}
           >
             <CartesianGrid strokeDasharray="4 4" stroke="#f1f5f9" />
             <XAxis
               dataKey="month"
               axisLine={false}
               tickLine={false}
+              tickMargin={10}
               tick={{ fontSize: 12, fill: "#94a3b8" }}
             />
             <YAxis
               axisLine={false}
               tickLine={false}
+              width={46}
               tick={{ fontSize: 12, fill: "#94a3b8" }}
-              domain={[0, 800]}
-              tickFormatter={(value) => `${value}.00`}
+              domain={[0, yAxisMax]}
+              tickCount={6}
+              tickFormatter={(value) => value.toLocaleString()}
             />
             <Tooltip
               content={<CustomTooltip />}
@@ -113,7 +121,7 @@ const UserRatioChart = () => {
             <Bar
               dataKey="users"
               radius={[10, 10, 0, 0]}
-              barSize={30}
+              maxBarSize={42}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >

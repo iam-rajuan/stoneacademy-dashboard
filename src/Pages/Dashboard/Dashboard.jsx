@@ -3,33 +3,51 @@ import UserRatioChart from "../../Components/Dashboard/UserRatioChart";
 
 const Dashboard = () => {
   return (
-    <div className="flex h-full flex-col">
-      <div
-        style={{ boxShadow: "0px 1px 6px 0px rgba(0, 0, 0, 0.24)" }}
-        className="flex flex-wrap p-5 rounded-md justify-evenly md:flex-nowrap"
-      >
-        {/*============================= Total User =============================*/}
-        <div className="flex justify-center w-full md:w-1/4">
-          <div className="flex flex-col gap-5">
-            <p className="text-[#1C2434] text-2xl font-bold">38.6K</p>
-            <p className="text-xl text-[#101010] font-semibold">Total Users</p>
+    <div className="flex flex-col h-full min-h-0 gap-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="p-6 bg-white border shadow-sm rounded-2xl border-slate-100">
+          <p className="text-xs font-semibold tracking-[0.2em] text-slate-400 uppercase">
+            Overview
+          </p>
+          <div className="mt-3 flex items-end justify-between">
+            <div>
+              <p className="text-3xl font-bold text-slate-900">38.6K</p>
+              <p className="mt-1 text-base font-semibold text-slate-700">
+                Total Users
+              </p>
+            </div>
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+              +12.4%
+            </span>
           </div>
         </div>
 
-        {/*============================= Total Revenue =============================*/}
-        <div className="flex justify-center w-full mt-6 md:w-1/4 md:mt-0">
-          <div className="flex flex-col gap-5">
-            <p className="text-[#1C2434] text-2xl font-bold">4.9M</p>
-            <p className="text-xl text-[#101010] font-semibold">
-              Total Revenue
-            </p>
+        <div className="p-6 bg-white border shadow-sm rounded-2xl border-slate-100">
+          <p className="text-xs font-semibold tracking-[0.2em] text-slate-400 uppercase">
+            Performance
+          </p>
+          <div className="mt-3 flex items-end justify-between">
+            <div>
+              <p className="text-3xl font-bold text-slate-900">4.9M</p>
+              <p className="mt-1 text-base font-semibold text-slate-700">
+                Total Revenue
+              </p>
+            </div>
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+              +8.1%
+            </span>
           </div>
+          <p className="mt-3 text-sm text-slate-500">
+            Revenue growth compared with last month.
+          </p>
         </div>
       </div>
 
-      <div className="flex-1 mt-4 space-y-4 overflow-y-auto">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-2 pr-1">
         <UserRatioChart />
-        <RecentUsersTable />
+        <div className="pb-2">
+          <RecentUsersTable />
+        </div>
       </div>
     </div>
   );

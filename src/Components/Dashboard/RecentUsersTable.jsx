@@ -1,5 +1,13 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Eye, Ban, X } from "lucide-react"
+
+const randomNames = [
+  "John Carter", "Sophia Adams", "Liam Wilson", "Emma Johnson",
+  "Noah Walker", "Olivia Brown", "Mason Davis", "Ava Martinez",
+  "James Miller", "Amelia Taylor", "Benjamin Moore", "Mia Anderson",
+  "Lucas Thomas", "Charlotte Lee", "Henry White", "Isabella Harris",
+  "Logan Hall", "Evelyn Scott", "Alexander Young", "Grace King"
+]
 
 const RecentUsersTable = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -7,28 +15,23 @@ const RecentUsersTable = () => {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
   const [userToBlock, setUserToBlock] = useState(null)
 
-  //========================== Random name list==========================
-  const randomNames = [
-    "John Carter", "Sophia Adams", "Liam Wilson", "Emma Johnson",
-    "Noah Walker", "Olivia Brown", "Mason Davis", "Ava Martinez",
-    "James Miller", "Amelia Taylor", "Benjamin Moore", "Mia Anderson",
-    "Lucas Thomas", "Charlotte Lee", "Henry White", "Isabella Harris",
-    "Logan Hall", "Evelyn Scott", "Alexander Young", "Grace King"
-  ]
-
   // ==========================Generate random users==========================
-  const users = Array.from({ length: 20 }, (_, i) => {
-    const name = randomNames[Math.floor(Math.random() * randomNames.length)]
+  const users = useMemo(
+    () =>
+      Array.from({ length: 20 }, (_, i) => {
+        const name = randomNames[Math.floor(Math.random() * randomNames.length)]
 
-    return {
-      id: i + 1,
-      name,
-      email: `${name.toLowerCase().replace(/ /g, "")}${i + 1}@gmail.com`,
-      joinedDate: "02-24-2024",
-      avatar:
-        "https://images.unsplash.com/photo-1633332755192-727a05c4013d?fm=jpg&q=60&w=3000",
-    }
-  })
+        return {
+          id: i + 1,
+          name,
+          email: `${name.toLowerCase().replace(/ /g, "")}${i + 1}@gmail.com`,
+          joinedDate: "02-24-2024",
+          avatar:
+            "https://images.unsplash.com/photo-1633332755192-727a05c4013d?fm=jpg&q=60&w=3000",
+        }
+      }),
+    []
+  )
 
   const displayedUsers = users.slice(0, 5)
 
@@ -59,7 +62,7 @@ const RecentUsersTable = () => {
   }
 
   return (
-    <div className="w-full mt-4">
+    <div className="w-full">
       <div className="flex flex-col h-full p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
         {/*============================= Header============================= */}
         <div className="mb-6 space-y-1">
@@ -203,7 +206,7 @@ const RecentUsersTable = () => {
             onClick={(event) => event.stopPropagation()}
           >
             <h2 className="mb-6 text-xl font-semibold text-gray-900">
-              Do you want to block this user?
+              Are you sure you want to block this user?
             </h2>
 
             <div className="flex gap-3">
