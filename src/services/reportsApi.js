@@ -33,7 +33,7 @@ export const resolveAdminReport = ({ reportId, body = {} }) =>
     if (error?.status === 404 || error?.status === 405) {
       return apiRequest(createPath("/reports/admin/:reportId/status", { reportId }), {
         method: "PATCH",
-        body: { status: "closed", ...body },
+        body: { status: "resolved", ...body },
       });
     }
     throw error;
@@ -43,6 +43,12 @@ export const dismissAdminReport = ({ reportId, body = {} }) =>
   apiRequest(createPath("/admin/reports/:reportId/dismiss", { reportId }), {
     method: "POST",
     body,
+  });
+
+export const applyAdminReportAction = ({ reportId, action, note }) =>
+  apiRequest(createPath("/admin/reports/:reportId/action", { reportId }), {
+    method: "POST",
+    body: { action, ...(note ? { note } : {}) },
   });
 
 export const updateAdminReportStatus = ({ reportId, status, body = {} }) => {
