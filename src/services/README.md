@@ -78,6 +78,8 @@ This frontend now includes service functions for the provided admin collection e
 - `updateAdminReportStatus`
 
 ## Admin Chat
-- `listConversations`
-- `listMessages`
-- `sendMessage`
+- `listThreads`
+- `ensureAdminThread`
+- `listThreadMessages`
+- `sendThreadMessage`
+- `markThreadSeen`

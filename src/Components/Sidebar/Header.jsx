@@ -4,11 +4,17 @@ import { RxHamburgerMenu } from "react-icons/rx";
 import { IoMdNotificationsOutline } from "react-icons/io";
 import { Bell, MessageSquareMore } from "lucide-react";
 import adminImage from "../../assets/image/adminkickclick.jpg";
-import { getMyProfile } from "../../services/adminApi";
+import {
+  getMyProfile,
+  getUnreadNotificationCount,
+  listAdminNotifications,
+  markNotificationRead,
+} from "../../services/adminApi";
 
 const Header = ({ showDrawer }) => {
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notificationsCount] = useState(5);
+  const [notificationsCount, setNotificationsCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
   const [adminProfile, setAdminProfile] = useState({
     name: "Admin",
     role: "admin",
@@ -16,13 +22,6 @@ const Header = ({ showDrawer }) => {
   });
   const navigate = useNavigate();
   const location = useLocation();
-
-  const notifications = [
-    { message: "A new user joined your app.", time: "Fri, 12:30pm" },
-    { message: "Profile report received.", time: "Fri, 12:30pm" },
-    { message: "A new verification request.", time: "Fri, 12:30pm" },
-    { message: "New comment on your post.", time: "Fri, 12:30pm" },
-  ];
 
   const isMessagesActive = location.pathname === "/messages";
 
@@ -54,13 +53,62 @@ const Header = ({ showDrawer }) => {
       }));
     };
 
+    const loadNotifications = async () => {
+      try {
+        const [listPayload, unreadPayload] = await Promise.all([
+          listAdminNotifications({ page: 1, limit: 4 }),
+          getUnreadNotificationCount(),
+        ]);
+        if (!mounted) return;
+
+        const listData = listPayload?.data || listPayload;
+        const items = Array.isArray(listData) ? listData : listData?.items || listData?.rows || [];
+        const mapped = (Array.isArray(items) ? items : []).map((item) => ({
+          id: item?.id || item?._id,
+          title: item?.title || "Notification",
+          message: item?.body || item?.message || item?.title || "Notification",
+          time: item?.createdAt ? new Date(item.createdAt).toLocaleString() : "",
+          isRead: Boolean(item?.isRead || item?.read),
+        }));
+
+        const unreadData = unreadPayload?.data || unreadPayload;
+        setNotifications(mapped);
+        setNotificationsCount(Number(unreadData?.count || 0));
+      } catch {
+        if (!mounted) return;
+        setNotifications([]);
+        setNotificationsCount(0);
+      }
+    };
+
+    const handleNotificationsUpdated = () => {
+      loadNotifications();
+    };
+
     loadProfile();
+    loadNotifications();
     window.addEventListener("admin-profile-updated", handleProfileUpdated);
+    window.addEventListener("admin-notifications-updated", handleNotificationsUpdated);
     return () => {
       mounted = false;
       window.removeEventListener("admin-profile-updated", handleProfileUpdated);
+      window.removeEventListener("admin-notifications-updated", handleNotificationsUpdated);
     };
   }, []);
+
+  const handleNotificationClick = async (item) => {
+    if (!item?.id || item.isRead) return;
+    try {
+      await markNotificationRead({ id: item.id });
+      setNotifications((prev) =>
+        prev.map((notif) => (notif.id === item.id ? { ...notif, isRead: true } : notif))
+      );
+      setNotificationsCount((prev) => Math.max(0, prev - 1));
+      window.dispatchEvent(new CustomEvent("admin-notifications-updated"));
+    } catch {
+      // Keep UI as-is if mark-read fails.
+    }
+  };
 
   return (
     <div className="relative mt-2">
@@ -127,18 +175,25 @@ const Header = ({ showDrawer }) => {
 
           <div className="mt-4 space-y-4">
             {notifications.map((item, index) => (
-              <div key={index} className="flex items-start gap-3">
-                <div className="bg-[#f1f5f9] p-2 rounded-md">
-                  <Bell className="text-[#1e293b]" size={20} />
+              <button
+                key={item.id || index}
+                className="flex items-start w-full gap-3 text-left"
+                onClick={() => handleNotificationClick(item)}
+              >
+                <div className={`p-2 rounded-md ${item.isRead ? "bg-[#f1f5f9]" : "bg-blue-100"}`}>
+                  <Bell className={item.isRead ? "text-[#1e293b]" : "text-blue-700"} size={20} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-[#1e293b]">
+                  <p className={`text-sm font-medium ${item.isRead ? "text-[#1e293b]" : "text-blue-900"}`}>
                     {item.message}
                   </p>
                   <p className="text-xs text-gray-500">{item.time}</p>
                 </div>
-              </div>
+              </button>
             ))}
+            {notifications.length === 0 ? (
+              <p className="text-sm text-gray-500">No notifications found.</p>
+            ) : null}
           </div>
 
           <button
