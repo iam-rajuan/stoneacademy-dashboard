@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { listAdminReports, updateAdminReportStatus } from "../../services/reportsApi";
+import { applyAdminReportAction, listAdminReports } from "../../services/reportsApi";
+import { getUserById } from "../../services/adminApi";
 
 const Reports = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [reports, setReports] = useState([]);
   const [totalItems, setTotalItems] = useState(0);
-  const [updatingId, setUpdatingId] = useState(null);
+  const [updatingActionKey, setUpdatingActionKey] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isUserLoading, setIsUserLoading] = useState(false);
   const itemsPerPage = 8;
 
   useEffect(() => {
@@ -17,9 +21,12 @@ const Reports = () => {
         const payload = await listAdminReports({ page: currentPage, limit: itemsPerPage });
         if (!mounted) return;
 
-        const data = payload?.data || payload;
-        const items = data?.reports || data?.items || data?.rows || [];
+        const data = payload?.data ?? payload;
+        const items = Array.isArray(data)
+          ? data
+          : data?.reports || data?.items || data?.rows || [];
         const total =
+          Number(payload?.meta?.totalItems) ||
           Number(data?.total) ||
           Number(data?.meta?.total) ||
           Number(data?.pagination?.total) ||
@@ -50,23 +57,76 @@ const Reports = () => {
       reports.map((report, index) => ({
         id: report?.id || report?._id || String(startIndex + index + 1).padStart(2, "0"),
         reportFrom:
-          report?.reportFrom?.name || report?.reporter?.name || report?.from?.name || "N/A",
+          report?.reportFrom?.fullName ||
+          report?.reportFrom?.name ||
+          report?.reporter?.fullName ||
+          report?.reporter?.name ||
+          report?.from?.name ||
+          "N/A",
         reportReason: report?.reason || report?.reportReason || "N/A",
         reportTo:
-          report?.reportTo?.name || report?.target?.name || report?.to?.name || "N/A",
-        date: report?.createdAt ? new Date(report.createdAt).toLocaleString() : report?.date || "N/A",
-        status: report?.status || "open",
+          report?.reportTo?.fullName ||
+          report?.reportTo?.name ||
+          report?.target?.fullName ||
+          report?.target?.name ||
+          report?.to?.name ||
+          "N/A",
+        date: report?.createdAt
+          ? new Date(report.createdAt).toLocaleString()
+          : report?.dateTime
+            ? new Date(report.dateTime).toLocaleString()
+            : report?.date || "N/A",
+        status:
+          report?.status === "resolved" || report?.status === "rejected"
+            ? "closed"
+            : report?.status || "open",
+        reportToId:
+          report?.reportTo?.id ||
+          report?.reportedUserId ||
+          null,
+        reportToStatus:
+          report?.reportTo?.status ||
+          report?.target?.status ||
+          null,
       })),
     [reports, startIndex]
   );
 
-  const handleCloseReport = async (reportId) => {
+  const handleReportAction = async (reportId, action) => {
+    const actionKey = `${reportId}:${action}`;
     try {
-      setUpdatingId(reportId);
-      await updateAdminReportStatus({ reportId, status: "closed" });
-      setReports((prev) => prev.map((r) => ((r.id || r._id) === reportId ? { ...r, status: "closed" } : r)));
+      setUpdatingActionKey(actionKey);
+      await applyAdminReportAction({ reportId, action });
+      setReports((prev) =>
+        prev.map((r) => {
+          if ((r.id || r._id) !== reportId) return r;
+          const next = { ...r, status: "resolved" };
+          if (action === "disable_user") {
+            next.reportTo = { ...(next.reportTo || {}), status: "blocked" };
+          }
+          if (action === "recover_user") {
+            next.reportTo = { ...(next.reportTo || {}), status: "active" };
+          }
+          return next;
+        })
+      );
     } finally {
-      setUpdatingId(null);
+      setUpdatingActionKey(null);
+    }
+  };
+
+  const handleViewUser = async (userId) => {
+    if (!userId) return;
+    setIsUserModalOpen(true);
+    setIsUserLoading(true);
+    try {
+      const payload = await getUserById({ id: userId });
+      const user = payload?.data ?? payload;
+      setSelectedUser(user || null);
+    } catch {
+      setSelectedUser(null);
+    } finally {
+      setIsUserLoading(false);
     }
   };
 
@@ -114,17 +174,39 @@ const Reports = () => {
                     <td className="px-4 py-3"><span className="font-medium">{report.reportTo}</span></td>
                     <td className="px-4 py-3 text-gray-700">{report.date}</td>
                     <td className="px-4 py-3">
-                      {report.status === "closed" ? (
-                        <span className="px-2 py-1 text-xs text-green-700 bg-green-100 rounded">Closed</span>
-                      ) : (
+                      <div className="flex items-center gap-2">
                         <button
-                          className="px-2 py-1 text-xs text-white bg-red-500 rounded disabled:opacity-50"
-                          onClick={() => handleCloseReport(report.id)}
-                          disabled={updatingId === report.id}
+                          className="px-2 py-1 text-xs text-white rounded bg-amber-500 disabled:opacity-50"
+                          onClick={() => handleReportAction(report.id, "warn")}
+                          disabled={updatingActionKey === `${report.id}:warn`}
                         >
-                          {updatingId === report.id ? "Closing..." : "Close"}
+                          {updatingActionKey === `${report.id}:warn` ? "Processing..." : "Warn"}
                         </button>
-                      )}
+                        <button
+                          className="px-2 py-1 text-xs text-white rounded bg-sky-600 disabled:opacity-50"
+                          onClick={() => handleViewUser(report.reportToId)}
+                          disabled={!report.reportToId}
+                        >
+                          View User
+                        </button>
+                        {report.reportToStatus === "blocked" ? (
+                          <button
+                            className="px-2 py-1 text-xs text-white bg-green-600 rounded disabled:opacity-50"
+                            onClick={() => handleReportAction(report.id, "recover_user")}
+                            disabled={updatingActionKey === `${report.id}:recover_user`}
+                          >
+                            {updatingActionKey === `${report.id}:recover_user` ? "Processing..." : "Recover User"}
+                          </button>
+                        ) : (
+                          <button
+                            className="px-2 py-1 text-xs text-white bg-red-500 rounded disabled:opacity-50"
+                            onClick={() => handleReportAction(report.id, "disable_user")}
+                            disabled={updatingActionKey === `${report.id}:disable_user`}
+                          >
+                            {updatingActionKey === `${report.id}:disable_user` ? "Processing..." : "Disable User"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -171,6 +253,42 @@ const Reports = () => {
           </div>
         </div>
       </div>
+      {isUserModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-800">Reported User Details</h2>
+              <button
+                className="rounded px-2 py-1 text-sm text-slate-600 hover:bg-slate-100"
+                onClick={() => {
+                  setIsUserModalOpen(false);
+                  setSelectedUser(null);
+                }}
+              >
+                Close
+              </button>
+            </div>
+            {isUserLoading ? (
+              <p className="text-sm text-slate-500">Loading user details...</p>
+            ) : selectedUser ? (
+              <div className="grid grid-cols-1 gap-2 text-sm text-slate-700">
+                <p><span className="font-semibold">Name:</span> {selectedUser.fullName || "N/A"}</p>
+                <p><span className="font-semibold">Email:</span> {selectedUser.email || "N/A"}</p>
+                <p><span className="font-semibold">Role:</span> {selectedUser.role || "N/A"}</p>
+                <p><span className="font-semibold">Status:</span> {selectedUser.status || "N/A"}</p>
+                <p><span className="font-semibold">Phone:</span> {selectedUser.phone || "N/A"}</p>
+                <p>
+                  <span className="font-semibold">Joined:</span>{" "}
+                  {selectedUser.joinedAt ? new Date(selectedUser.joinedAt).toLocaleString() : "N/A"}
+                </p>
+                <p><span className="font-semibold">Blocked Reason:</span> {selectedUser.blockedReason || "N/A"}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Unable to load user details.</p>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
