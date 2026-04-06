@@ -4,7 +4,9 @@ import {
   isTokenExpired,
 } from "../utils/auth";
 
-const DEFAULT_API_BASE_URL = "http://localhost:5191";
+const DEFAULT_API_BASE_URL = import.meta.env.DEV
+  ? "http://localhost:5191"
+  : window.location.origin;
 const DEFAULT_API_PREFIX = "/api/v1";
 
 const API_BASE_URL =
