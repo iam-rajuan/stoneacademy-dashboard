@@ -24,7 +24,7 @@ import AdsSetup from "../Pages/AdsSetup/AdsSetup";
 import ActivityEvents from "../Pages/Activity & Events/ActivityEvents";
 import EventCreators from "../Pages/EventCreator/EventCreators";
 import EventCreatorDetails from "../Pages/EventCreator/EventCreatorDetails";
-export const router = createBrowserRouter([
+const routes = [
   {
     path: "/sign-in",
     element: <SignIn />,
@@ -67,4 +67,8 @@ export const router = createBrowserRouter([
     path: "*",
     element: <Navigate to="/sign-in" replace />,
   },
-]);
+];
+
+export const router = createBrowserRouter(routes, {
+  basename: import.meta.env.BASE_URL,
+});
