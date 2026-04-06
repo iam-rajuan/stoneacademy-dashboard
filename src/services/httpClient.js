@@ -6,7 +6,7 @@ import {
 
 const DEFAULT_API_BASE_URL = import.meta.env.DEV
   ? "http://localhost:5191"
-  : window.location.origin;
+  : "";
 const DEFAULT_API_PREFIX = "/api/v1";
 
 const API_BASE_URL =
@@ -90,8 +90,13 @@ export const apiRequest = async (
 ) => {
   const redirectToSignIn = () => {
     if (typeof window === "undefined") return;
-    if (window.location.pathname !== "/sign-in") {
-      window.location.replace("/sign-in");
+    const signInPath = `${import.meta.env.BASE_URL || "/"}sign-in`;
+    const normalizedSignInPath = signInPath.replace(/\/+$/, "");
+    if (
+      window.location.pathname !== normalizedSignInPath &&
+      window.location.pathname !== signInPath
+    ) {
+      window.location.replace(signInPath);
     }
   };
 
@@ -185,3 +190,5 @@ export const apiRequestWithFallback = async (paths, options = {}) => {
 
   throw lastError || new Error("Request failed");
 };
+
+
