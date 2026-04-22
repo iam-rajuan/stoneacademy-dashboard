@@ -3,23 +3,48 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { RxHamburgerMenu } from "react-icons/rx";
 import { IoMdNotificationsOutline } from "react-icons/io";
 import { Bell, MessageSquareMore } from "lucide-react";
-import adminImage from "../../assets/image/adminkickclick.jpg";
 import {
   getMyProfile,
   getUnreadNotificationCount,
   listAdminNotifications,
   markNotificationRead,
 } from "../../services/adminApi";
+import {
+  readCachedAdminProfile,
+  writeCachedAdminProfile,
+} from "../../utils/adminProfileCache";
+
+const toAbsoluteImageUrl = (url) => {
+  if (!url || typeof url !== "string") return "";
+  if (/^(https?:)?\/\//i.test(url) || /^data:|^blob:/i.test(url)) return url;
+  if (url.startsWith("/")) {
+    const base = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "");
+    return base ? `${base}${url}` : url;
+  }
+  return url;
+};
+
+const getInitials = (name) =>
+  (name || "Admin")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "A";
 
 const Header = ({ showDrawer }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notificationsCount, setNotificationsCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
-  const [adminProfile, setAdminProfile] = useState({
-    name: "Admin",
-    role: "admin",
-    profilePhoto: "",
+  const [adminProfile, setAdminProfile] = useState(() => {
+    const cached = readCachedAdminProfile();
+    return {
+      name: cached?.name || "Admin",
+      role: cached?.role || "admin",
+      profilePhoto: cached?.profilePhoto || "",
+    };
   });
+  const [profileImageFailed, setProfileImageFailed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -33,11 +58,16 @@ const Header = ({ showDrawer }) => {
         const payload = await getMyProfile();
         if (!mounted) return;
         const data = payload?.data || payload;
-        setAdminProfile((prev) => ({
-          ...prev,
-          name: data?.name || data?.fullName || prev.name,
-          profilePhoto: data?.profilePhoto || "",
-        }));
+        setAdminProfile((prev) => {
+          const next = {
+            ...prev,
+            name: data?.name || data?.fullName || prev.name,
+            profilePhoto: data?.profilePhoto || data?.profileImageUrl || prev.profilePhoto,
+          };
+          writeCachedAdminProfile(next);
+          setProfileImageFailed(false);
+          return next;
+        });
       } catch {
         // Keep current local state.
       }
@@ -45,13 +75,49 @@ const Header = ({ showDrawer }) => {
 
     const handleProfileUpdated = (event) => {
       const detail = event?.detail || {};
-      setAdminProfile((prev) => ({
-        ...prev,
-        name: detail?.name || prev.name,
-        profilePhoto:
-          detail?.profilePhoto !== undefined ? detail.profilePhoto : prev.profilePhoto,
-      }));
+      setAdminProfile((prev) => {
+        const next = {
+          ...prev,
+          name: detail?.name || prev.name,
+          profilePhoto:
+            detail?.profilePhoto !== undefined ? detail.profilePhoto : prev.profilePhoto,
+        };
+        if (!String(next.profilePhoto || "").startsWith("blob:")) {
+          writeCachedAdminProfile(next);
+        }
+        setProfileImageFailed(false);
+        return next;
+      });
     };
+
+    const loadNotificationsCount = async () => {
+      try {
+        const unreadPayload = await getUnreadNotificationCount();
+        if (!mounted) return;
+        const unreadData = unreadPayload?.data || unreadPayload;
+        setNotificationsCount(Number(unreadData?.count || 0));
+      } catch {
+        if (mounted) setNotificationsCount(0);
+      }
+    };
+
+    const handleNotificationsUpdated = () => {
+      loadNotificationsCount();
+    };
+
+    loadProfile();
+    window.addEventListener("admin-profile-updated", handleProfileUpdated);
+    window.addEventListener("admin-notifications-updated", handleNotificationsUpdated);
+    return () => {
+      mounted = false;
+      window.removeEventListener("admin-profile-updated", handleProfileUpdated);
+      window.removeEventListener("admin-notifications-updated", handleNotificationsUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showNotifications) return undefined;
+    let mounted = true;
 
     const loadNotifications = async () => {
       try {
@@ -77,24 +143,14 @@ const Header = ({ showDrawer }) => {
       } catch {
         if (!mounted) return;
         setNotifications([]);
-        setNotificationsCount(0);
       }
     };
 
-    const handleNotificationsUpdated = () => {
-      loadNotifications();
-    };
-
-    loadProfile();
     loadNotifications();
-    window.addEventListener("admin-profile-updated", handleProfileUpdated);
-    window.addEventListener("admin-notifications-updated", handleNotificationsUpdated);
     return () => {
       mounted = false;
-      window.removeEventListener("admin-profile-updated", handleProfileUpdated);
-      window.removeEventListener("admin-notifications-updated", handleNotificationsUpdated);
     };
-  }, []);
+  }, [showNotifications]);
 
   const handleNotificationClick = async (item) => {
     if (!item?.id || item.isRead) return;
@@ -156,11 +212,18 @@ const Header = ({ showDrawer }) => {
           {/* Profile Icon */}
           <Link to="/settings/profile" >
           <div className="p-2 text-blue-700 transition border border-blue-500 rounded-full hover:bg-blue-50">
-            <img
-              src={adminProfile.profilePhoto || adminImage}
-              alt="Admin"
-              className="object-cover w-5 h-5 rounded-full"
-            />
+            {adminProfile.profilePhoto && !profileImageFailed ? (
+              <img
+                src={toAbsoluteImageUrl(adminProfile.profilePhoto)}
+                alt="Admin"
+                className="object-cover w-5 h-5 rounded-full"
+                onError={() => setProfileImageFailed(true)}
+              />
+            ) : (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-700">
+                {getInitials(adminProfile.name)}
+              </span>
+            )}
           </div>
           </Link>
         </div>

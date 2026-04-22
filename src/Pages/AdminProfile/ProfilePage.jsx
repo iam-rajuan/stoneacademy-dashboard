@@ -5,11 +5,34 @@ import EditProfile from "./EditProfile";
 import ChangePass from "./ChangePass";
 import Profile from "./Profile";
 import { getMyProfile, updateMyProfile } from "../../services/adminApi";
-import adminImage from "../../assets/image/adminkickclick.jpg";
+import {
+  readCachedAdminProfile,
+  writeCachedAdminProfile,
+} from "../../utils/adminProfileCache";
+
+const toAbsoluteImageUrl = (url) => {
+  if (!url || typeof url !== "string") return "";
+  if (/^(https?:)?\/\//i.test(url) || /^data:|^blob:/i.test(url)) return url;
+  if (url.startsWith("/")) {
+    const base = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "");
+    return base ? `${base}${url}` : url;
+  }
+  return url;
+};
+
+const getInitials = (name) =>
+  (name || "Admin")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "A";
 
 function ProfilePage() {
   const [activeTab, setActiveTab] = useState("/settings/profile");
-  const [profilePic, setProfilePic] = useState("");
+  const [profilePic, setProfilePic] = useState(() => readCachedAdminProfile()?.profilePhoto || "");
+  const [profileName, setProfileName] = useState(() => readCachedAdminProfile()?.name || "Admin");
+  const [profileImageFailed, setProfileImageFailed] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
@@ -20,15 +43,20 @@ function ProfilePage() {
         const payload = await getMyProfile();
         if (!mounted) return;
         const data = payload?.data || payload;
-        const nextPhoto = data?.profilePhoto || "";
+        const cached = readCachedAdminProfile();
+        const nextPhoto = data?.profilePhoto || data?.profileImageUrl || cached?.profilePhoto || "";
+        const nextName = data?.name || data?.fullName || cached?.name || "Admin";
         setProfilePic(nextPhoto);
+        setProfileName(nextName);
+        setProfileImageFailed(false);
+        writeCachedAdminProfile({ name: nextName, profilePhoto: nextPhoto });
         window.dispatchEvent(
           new CustomEvent("admin-profile-updated", {
-            detail: { profilePhoto: nextPhoto, name: data?.name || data?.fullName || "" },
+            detail: { profilePhoto: nextPhoto, name: nextName },
           })
         );
       } catch {
-        if (mounted) setProfilePic("");
+        // Keep cached or current profile photo.
       }
     };
 
@@ -56,7 +84,14 @@ function ProfilePage() {
     if (!file) return;
 
     const localPreview = URL.createObjectURL(file);
+    let shouldRevokeLocalPreview = false;
     setProfilePic(localPreview);
+    setProfileImageFailed(false);
+    window.dispatchEvent(
+      new CustomEvent("admin-profile-updated", {
+        detail: { profilePhoto: localPreview, name: profileName },
+      })
+    );
 
     try {
       setUploadingPhoto(true);
@@ -64,11 +99,16 @@ function ProfilePage() {
       formData.append("photo", file);
       const payload = await updateMyProfile(formData);
       const data = payload?.data || payload;
-      if (data?.profilePhoto) {
-        setProfilePic(data.profilePhoto);
+      const serverPhoto = data?.profilePhoto || data?.profileImageUrl;
+      const nextName = data?.name || data?.fullName || profileName;
+      if (serverPhoto) {
+        shouldRevokeLocalPreview = true;
+        setProfilePic(serverPhoto);
+        setProfileName(nextName);
+        writeCachedAdminProfile({ name: nextName, profilePhoto: serverPhoto });
         window.dispatchEvent(
           new CustomEvent("admin-profile-updated", {
-            detail: { profilePhoto: data.profilePhoto },
+            detail: { profilePhoto: serverPhoto, name: nextName },
           })
         );
       }
@@ -76,6 +116,7 @@ function ProfilePage() {
       // Keep local preview if upload fails.
     } finally {
       setUploadingPhoto(false);
+      if (shouldRevokeLocalPreview) URL.revokeObjectURL(localPreview);
       event.target.value = "";
     }
   };
@@ -100,11 +141,18 @@ function ProfilePage() {
           <div className="w-full">
             <div className="mt-10 ">
               <div className="w-[122px] relative h-[122px] mx-auto rounded-full border-4 shadow-xl flex justify-center items-center">
-                <img
-                  src={profilePic || adminImage}
-                  alt="profile"
-                  className="w-32 h-32 overflow-hidden rounded-full object-cover"
-                />
+                {profilePic && !profileImageFailed ? (
+                  <img
+                    src={toAbsoluteImageUrl(profilePic)}
+                    alt="profile"
+                    className="w-32 h-32 overflow-hidden rounded-full object-cover"
+                    onError={() => setProfileImageFailed(true)}
+                  />
+                ) : (
+                  <div className="flex w-32 h-32 items-center justify-center overflow-hidden rounded-full bg-blue-100 text-3xl font-semibold text-blue-700">
+                    {getInitials(profileName)}
+                  </div>
+                )}
                 <div className="absolute top-0 right-0 p-2 rounded-full shadow-md cursor-pointer bg-white">
                   <label htmlFor="profilePicUpload" className="cursor-pointer">
                     <LuPenLine />

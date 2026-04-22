@@ -5,4 +5,17 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: process.env.VITE_APP_BASE_PATH || '/',
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          charts: ['chart.js', 'recharts'],
+          antd: ['antd', '@ant-design/icons'],
+          editor: ['jodit-react'],
+          icons: ['lucide-react', 'react-icons'],
+        },
+      },
+    },
+  },
 })

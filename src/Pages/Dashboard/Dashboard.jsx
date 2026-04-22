@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import RecentUsersTable from "../../Components/Dashboard/RecentUsersTable";
 import UserRatioChart from "../../Components/Dashboard/UserRatioChart";
 import {
   getDashboardAnalytics,
-  getDashboardOverview,
-  listUsersSafe,
+  getDashboardBootstrap,
 } from "../../services/adminApi";
 
 const toNumber = (value, fallback = 0) => {
@@ -18,32 +17,6 @@ const firstFinite = (...values) => {
     if (Number.isFinite(numeric)) return numeric;
   }
   return 0;
-};
-
-const extractItems = (payload) => {
-  const data = payload?.data ?? payload;
-  const visited = new Set();
-
-  const findFirstArray = (value) => {
-    if (Array.isArray(value)) return value;
-    if (!value || typeof value !== "object") return null;
-    if (visited.has(value)) return null;
-    visited.add(value);
-
-    const priorityKeys = ["users", "items", "rows", "results", "docs", "data", "list"];
-    for (const key of priorityKeys) {
-      if (Array.isArray(value[key])) return value[key];
-    }
-
-    for (const key of Object.keys(value)) {
-      const found = findFirstArray(value[key]);
-      if (found) return found;
-    }
-
-    return null;
-  };
-
-  return findFirstArray(data) || [];
 };
 
 const normalizeMonthData = (analytics) => {
@@ -74,6 +47,7 @@ const Dashboard = () => {
   const [recentUsers, setRecentUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(String(currentYear));
+  const didSkipInitialAnalyticsLoad = useRef(false);
   const yearOptions = useMemo(
     () => Array.from({ length: 5 }, (_, index) => String(currentYear - index)),
     [currentYear]
@@ -85,18 +59,17 @@ const Dashboard = () => {
     const loadDashboard = async () => {
       try {
         setLoading(true);
-        const [overviewPayload, usersPayload] = await Promise.all([
-          getDashboardOverview(),
-          listUsersSafe({ page: 1, limit: 5 }),
-        ]);
+        const payload = await getDashboardBootstrap({
+          year: currentYear,
+        });
 
         if (!mounted) return;
 
-        setOverview(overviewPayload?.data || overviewPayload);
-
-        const users = extractItems(usersPayload);
-        setRecentUsers(users);
-      } catch (error) {
+        const data = payload?.data || payload;
+        setOverview(data?.overview || null);
+        setAnalytics(data?.analytics || null);
+        setRecentUsers(Array.isArray(data?.recentUsers) ? data.recentUsers : []);
+      } catch {
         if (mounted) {
           setOverview(null);
           setAnalytics(null);
@@ -111,9 +84,14 @@ const Dashboard = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [currentYear]);
 
   useEffect(() => {
+    if (!didSkipInitialAnalyticsLoad.current) {
+      didSkipInitialAnalyticsLoad.current = true;
+      return undefined;
+    }
+
     let mounted = true;
 
     const loadAnalytics = async () => {
@@ -123,7 +101,7 @@ const Dashboard = () => {
         });
         if (!mounted) return;
         setAnalytics(analyticsPayload?.data || analyticsPayload);
-      } catch (error) {
+      } catch {
         if (mounted) {
           setAnalytics(null);
         }

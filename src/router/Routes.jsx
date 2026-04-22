@@ -1,64 +1,77 @@
+import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
-import MainLayout from "../Layout/Main/Main";
-import SignIn from "../Pages/Auth/SignIn/SignIn";
-import AboutUs from "../Pages/Settings/AboutUS/AboutUs";
-import PrivacyPolicy from "../Pages/Settings/PrivacyPolicy/PrivacyPolicy";
-import TermsCondition from "../Pages/Settings/TermsCondition/TermsCondition";
 import PrivateRoute from "./PrivateRoute";
-import Dashboard from "../Pages/Dashboard/Dashboard";
-import ProfilePage from "../Pages/AdminProfile/ProfilePage";
-import Notifications from "../Pages/Notifications/Notifications";
-import AnalysisPage from "../Pages/Analysis/AnalysisPage";
-import Subscriptions from "../Pages/Subscriptions/Subscriptions";
-import Analysis from "../Pages/Analysis/Analysis";
-import RestaurantRequest from "../Pages/RestaurantRequest/RestaurantRequest";
-import UserList from "../Pages/UserList/UserList";
-import Earnings from "../Pages/Earnings/Earnings";
-import Categories from "../Pages/Categories/Categories";
-import Reports from "../Pages/Reports/Reports";
-import Settings from "../Pages/Settings/Settings";
-import AllMessages from "../Pages/Messages/AllMessages";
-import BlockedList from "../Pages/BlockedList/BlockedList";
-import ChangePass from "../Pages/AdminProfile/ChangePass";
-import AdsSetup from "../Pages/AdsSetup/AdsSetup";
-import ActivityEvents from "../Pages/Activity & Events/ActivityEvents";
-import EventCreators from "../Pages/EventCreator/EventCreators";
-import EventCreatorDetails from "../Pages/EventCreator/EventCreatorDetails";
+
+const MainLayout = lazy(() => import("../Layout/Main/Main"));
+const SignIn = lazy(() => import("../Pages/Auth/SignIn/SignIn"));
+const AboutUs = lazy(() => import("../Pages/Settings/AboutUS/AboutUs"));
+const PrivacyPolicy = lazy(() => import("../Pages/Settings/PrivacyPolicy/PrivacyPolicy"));
+const TermsCondition = lazy(() => import("../Pages/Settings/TermsCondition/TermsCondition"));
+const Dashboard = lazy(() => import("../Pages/Dashboard/Dashboard"));
+const ProfilePage = lazy(() => import("../Pages/AdminProfile/ProfilePage"));
+const Notifications = lazy(() => import("../Pages/Notifications/Notifications"));
+const AnalysisPage = lazy(() => import("../Pages/Analysis/AnalysisPage"));
+const Subscriptions = lazy(() => import("../Pages/Subscriptions/Subscriptions"));
+const Analysis = lazy(() => import("../Pages/Analysis/Analysis"));
+const RestaurantRequest = lazy(() => import("../Pages/RestaurantRequest/RestaurantRequest"));
+const UserList = lazy(() => import("../Pages/UserList/UserList"));
+const Earnings = lazy(() => import("../Pages/Earnings/Earnings"));
+const Categories = lazy(() => import("../Pages/Categories/Categories"));
+const Reports = lazy(() => import("../Pages/Reports/Reports"));
+const Settings = lazy(() => import("../Pages/Settings/Settings"));
+const AllMessages = lazy(() => import("../Pages/Messages/AllMessages"));
+const BlockedList = lazy(() => import("../Pages/BlockedList/BlockedList"));
+const ChangePass = lazy(() => import("../Pages/AdminProfile/ChangePass"));
+const AdsSetup = lazy(() => import("../Pages/AdsSetup/AdsSetup"));
+const ActivityEvents = lazy(() => import("../Pages/Activity & Events/ActivityEvents"));
+const EventCreators = lazy(() => import("../Pages/EventCreator/EventCreators"));
+const EventCreatorDetails = lazy(() => import("../Pages/EventCreator/EventCreatorDetails"));
+
+const PageLoader = () => (
+  <div className="flex min-h-screen items-center justify-center bg-gray-50 text-sm font-medium text-slate-500">
+    Loading...
+  </div>
+);
+
+const withSuspense = (element) => (
+  <Suspense fallback={<PageLoader />}>{element}</Suspense>
+);
+
 const routes = [
   {
     path: "/sign-in",
-    element: <SignIn />,
+    element: withSuspense(<SignIn />),
   },
   {
     element: <PrivateRoute />,
     children: [
       {
         path: "/",
-        element: <MainLayout />,
+        element: withSuspense(<MainLayout />),
         children: [
-          { path: "/", element: <Dashboard /> },
-          { path: "/dashboard", element: <Dashboard /> },
-          { path: "/user-list", element: <UserList /> },
-          { path: "/block-list", element: <BlockedList /> },
-          { path: "/earnings", element: <Earnings /> },
-          { path: "/restaurant-request", element: <RestaurantRequest /> },
-          { path: "/analysis-page", element: <AnalysisPage /> },
-          { path: "/analysis/:id", element: <Analysis /> },
-          { path: "/subscriptions", element: <Subscriptions /> },
-          { path: "/categories", element: <Categories /> },
-          { path: "/reports", element: <Reports /> },
-          { path: "/ads-setup", element: <AdsSetup /> },
-          { path: "/activity&events", element: <ActivityEvents /> },
-          { path: "/event-creator", element: <EventCreators /> },
-          { path: "/event-creator/:id", element: <EventCreatorDetails /> },
-          { path: "/notifications", element: <Notifications /> },
-          { path: "/settings", element: <Settings /> },
-          { path: "/settings/about-us", element: <AboutUs /> },
-          { path: "/settings/privacy-policy", element: <PrivacyPolicy /> },
-          { path: "/settings/terms-condition", element: <TermsCondition /> },
-          { path: "/settings/profile", element: <ProfilePage /> },
-          { path: "/settings/change-password", element: <ChangePass /> },
-          { path: "/messages", element: <AllMessages /> },
+          { path: "/", element: withSuspense(<Dashboard />) },
+          { path: "/dashboard", element: withSuspense(<Dashboard />) },
+          { path: "/user-list", element: withSuspense(<UserList />) },
+          { path: "/block-list", element: withSuspense(<BlockedList />) },
+          { path: "/earnings", element: withSuspense(<Earnings />) },
+          { path: "/restaurant-request", element: withSuspense(<RestaurantRequest />) },
+          { path: "/analysis-page", element: withSuspense(<AnalysisPage />) },
+          { path: "/analysis/:id", element: withSuspense(<Analysis />) },
+          { path: "/subscriptions", element: withSuspense(<Subscriptions />) },
+          { path: "/categories", element: withSuspense(<Categories />) },
+          { path: "/reports", element: withSuspense(<Reports />) },
+          { path: "/ads-setup", element: withSuspense(<AdsSetup />) },
+          { path: "/activity&events", element: withSuspense(<ActivityEvents />) },
+          { path: "/event-creator", element: withSuspense(<EventCreators />) },
+          { path: "/event-creator/:id", element: withSuspense(<EventCreatorDetails />) },
+          { path: "/notifications", element: withSuspense(<Notifications />) },
+          { path: "/settings", element: withSuspense(<Settings />) },
+          { path: "/settings/about-us", element: withSuspense(<AboutUs />) },
+          { path: "/settings/privacy-policy", element: withSuspense(<PrivacyPolicy />) },
+          { path: "/settings/terms-condition", element: withSuspense(<TermsCondition />) },
+          { path: "/settings/profile", element: withSuspense(<ProfilePage />) },
+          { path: "/settings/change-password", element: withSuspense(<ChangePass />) },
+          { path: "/messages", element: withSuspense(<AllMessages />) },
         ],
       },
     ],

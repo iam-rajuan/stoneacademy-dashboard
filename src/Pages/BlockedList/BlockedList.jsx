@@ -110,6 +110,7 @@ const extractItemsAndTotal = (payload) => {
 
 const BlockedList = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [users, setUsers] = useState([]);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -124,6 +125,14 @@ const BlockedList = () => {
   const usersPerPage = 8;
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  useEffect(() => {
     let mounted = true;
 
     const loadBlockedUsers = async () => {
@@ -132,7 +141,7 @@ const BlockedList = () => {
         const payload = await listBlockedUsers({
           page: currentPage,
           limit: usersPerPage,
-          search: searchTerm || undefined,
+          search: debouncedSearchTerm || undefined,
         });
 
         if (!mounted) return;
@@ -156,7 +165,7 @@ const BlockedList = () => {
     return () => {
       mounted = false;
     };
-  }, [currentPage, searchTerm]);
+  }, [currentPage, debouncedSearchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(totalUsers / usersPerPage));
   const startIndex = (currentPage - 1) * usersPerPage;

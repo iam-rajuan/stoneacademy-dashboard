@@ -8,46 +8,142 @@ const toListQuery = (query = {}) => ({
   ...query,
 });
 
+const requestCache = new Map();
+
+const stableStringify = (value = {}) =>
+  JSON.stringify(
+    Object.keys(value)
+      .sort()
+      .reduce((acc, key) => {
+        if (value[key] !== undefined && value[key] !== null && value[key] !== "") {
+          acc[key] = value[key];
+        }
+        return acc;
+      }, {})
+  );
+
+const cachedRequest = (key, loader, ttl = 15000) => {
+  const now = Date.now();
+  const cached = requestCache.get(key);
+
+  if (cached?.promise) return cached.promise;
+  if (cached?.expiresAt > now) return Promise.resolve(cached.data);
+
+  const promise = loader()
+    .then((data) => {
+      requestCache.set(key, {
+        data,
+        expiresAt: Date.now() + ttl,
+      });
+      return data;
+    })
+    .catch((error) => {
+      requestCache.delete(key);
+      throw error;
+    });
+
+  requestCache.set(key, { promise, expiresAt: now + ttl });
+  return promise;
+};
+
+const clearCachedRequests = (prefix) => {
+  for (const key of requestCache.keys()) {
+    if (!prefix || key.startsWith(prefix)) requestCache.delete(key);
+  }
+};
+
 export const getMyProfile = () =>
-  apiRequestWithFallback(["/admin/profile", "/admin/settings/profile"]);
+  cachedRequest(
+    "profile:me",
+    () => apiRequestWithFallback(["/admin/profile", "/admin/settings/profile"]),
+    60000
+  );
 
 export const updateMyProfile = (body) =>
   apiRequestWithFallback(["/admin/profile", "/admin/settings/profile"], {
     method: "PUT",
     body,
     contentType: body instanceof FormData ? null : "application/json",
+  }).then((payload) => {
+    clearCachedRequests("profile:");
+    return payload;
   });
 
 export const getDashboardOverview = () =>
-  apiRequestWithFallback([
-    "/admin/dashboard/overview",
-    "/dashboard/overview"
-  ]);
+  cachedRequest(
+    "dashboard:overview",
+    () =>
+      apiRequestWithFallback([
+        "/admin/dashboard/overview",
+        "/dashboard/overview"
+      ]),
+    15000
+  );
 
 export const getDashboardAnalytics = async (query = {}) => {
+  const cacheKey = `dashboard:analytics:${stableStringify(query)}`;
   const queryCandidates = [
     { ...toListQuery(query) },
     {},
   ];
 
-  for (const candidateQuery of queryCandidates) {
-    try {
-      return await apiRequestWithFallback(
-        ["/admin/dashboard/analytics", "/dashboard/analytics"],
-        { query: candidateQuery }
-      );
-    } catch (error) {
-      if (error?.status !== 404 && error?.status !== 400) {
-        throw error;
+  return cachedRequest(
+    cacheKey,
+    async () => {
+      for (const candidateQuery of queryCandidates) {
+        try {
+          return await apiRequestWithFallback(
+            ["/admin/dashboard/analytics", "/dashboard/analytics"],
+            { query: candidateQuery }
+          );
+        } catch (error) {
+          if (error?.status !== 404 && error?.status !== 400) {
+            throw error;
+          }
+        }
       }
-    }
-  }
 
-  return apiRequest("/admin/dashboard/overview");
+      return apiRequest("/admin/dashboard/overview");
+    },
+    15000
+  );
 };
 
+export const getDashboardBootstrap = (query = {}) =>
+  cachedRequest(
+    `dashboard:bootstrap:${stableStringify(query)}`,
+    async () => {
+      try {
+        return await apiRequest("/admin/dashboard/bootstrap", { query: toListQuery(query) });
+      } catch (error) {
+        if (error?.status !== 404 && error?.status !== 405) {
+          throw error;
+        }
+
+        const [overviewPayload, analyticsPayload, usersPayload] = await Promise.all([
+          getDashboardOverview(),
+          getDashboardAnalytics(query),
+          listUsersSafe({ page: 1, limit: 5 }),
+        ]);
+
+        return {
+          data: {
+            overview: overviewPayload?.data || overviewPayload,
+            analytics: analyticsPayload?.data || analyticsPayload,
+            recentUsers: usersPayload?.data?.items || usersPayload?.data || [],
+          },
+        };
+      }
+    },
+    15000
+  );
+
 export const listRecentUsers = (query = {}) =>
-  apiRequest("/admin/dashboard/recent-users", { query: toListQuery(query) });
+  cachedRequest(
+    `dashboard:recent-users:${stableStringify(query)}`,
+    () => apiRequest("/admin/dashboard/recent-users", { query: toListQuery(query) }),
+    15000
+  );
 
 export const getDashboardNotificationPreview = () =>
   apiRequest("/admin/dashboard/notifications/preview");
@@ -57,38 +153,34 @@ export const listUsers = (query = {}) =>
 
 const pickFirst = (...values) => values.find((v) => v !== undefined && v !== null);
 
-const buildUserListVariants = (query = {}) => {
+const normalizeUserListQuery = (query = {}) => {
   const page = pickFirst(query.page, 1);
   const limit = pickFirst(query.limit, query.pageSize, 10);
   const keyword = pickFirst(query.search, query.query, query.q, "");
 
-  return [
-    { page, limit, search: keyword || undefined },
-    { page, limit, query: keyword || undefined },
-    { page, pageSize: limit, query: keyword || undefined },
-    { page, pageSize: limit, q: keyword || undefined },
-  ];
+  return { page, limit, search: keyword || undefined };
 };
 
 export const listUsersSafe = async (query = {}) => {
-  const variants = buildUserListVariants(query);
+  const normalizedQuery = normalizeUserListQuery(query);
+  const cacheKey = `users:list:${stableStringify(normalizedQuery)}`;
 
-  for (const q of variants) {
+  return cachedRequest(cacheKey, async () => {
     try {
-      return await apiRequest("/admin/users", { query: q });
+      return await apiRequest("/admin/users", { query: normalizedQuery });
     } catch (error) {
-      if (error?.status !== 400 && error?.status !== 404 && error?.status !== 422) {
+      if (error?.status !== 404 && error?.status !== 405) {
         throw error;
       }
     }
-  }
 
-  return apiRequest("/admin/users/search", {
-    query: {
-      q: pickFirst(query.search, query.query, query.q, ""),
-      limit: pickFirst(query.limit, query.pageSize, 10),
-    },
-  });
+    return apiRequest("/admin/users/search", {
+      query: {
+        q: pickFirst(query.search, query.query, query.q, ""),
+        limit: pickFirst(query.limit, query.pageSize, 10),
+      },
+    });
+  }, 10000);
 };
 
 export const searchUsers = (query = {}) =>
@@ -100,13 +192,18 @@ export const searchUsers = (query = {}) =>
   });
 
 export const listBlockedUsers = (query = {}) =>
-  apiRequest("/admin/users/blocked", {
-    query: {
-      page: pickFirst(query.page, 1),
-      limit: pickFirst(query.limit, query.pageSize, 10),
-      search: pickFirst(query.search, query.query, query.q, ""),
-    },
-  });
+  cachedRequest(
+    `users:blocked:${stableStringify(query)}`,
+    () =>
+      apiRequest("/admin/users/blocked", {
+        query: {
+          page: pickFirst(query.page, 1),
+          limit: pickFirst(query.limit, query.pageSize, 10),
+          search: pickFirst(query.search, query.query, query.q, ""),
+        },
+      }),
+    10000
+  );
 
 export const getUserById = ({ id }) =>
   apiRequest(createPath("/admin/users/:id", { id }));
@@ -118,7 +215,10 @@ export const blockUser = ({ id }) =>
       createPath("/admin/users/:id/ban", { id }),
     ],
     { method: "POST", body: {} }
-  );
+  ).then((payload) => {
+    clearCachedRequests("users:");
+    return payload;
+  });
 
 export const unblockUser = ({ id }) =>
   apiRequestWithFallback(
@@ -127,7 +227,10 @@ export const unblockUser = ({ id }) =>
       createPath("/admin/users/:id/unban", { id }),
     ],
     { method: "POST", body: {} }
-  );
+  ).then((payload) => {
+    clearCachedRequests("users:");
+    return payload;
+  });
 
 export const addUserNote = ({ id, body }) =>
   apiRequest(createPath("/admin/users/:id/notes", { id }), {
@@ -179,7 +282,10 @@ export const updateUserStatus = ({ id, status }) => {
       method: "PATCH",
       body: { status },
     }
-  );
+  ).then((payload) => {
+    clearCachedRequests("users:");
+    return payload;
+  });
 };
 
 export const listActivities = (query = {}) =>
